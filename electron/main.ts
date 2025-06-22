@@ -141,7 +141,7 @@ app.on("activate", () => {
 app.whenReady().then(() => {
   if (process.platform === "darwin") {
     const icon = nativeImage.createFromPath(
-      path.join(process.env.VITE_PUBLIC, "click.png")
+      path.join(process.env.VITE_PUBLIC, "click.png"),
     );
     app.dock.setIcon(icon);
   }
@@ -196,7 +196,7 @@ ipcMain.on("message", async (event, msg) => {
         ? `\n\nHere is a list of clickable elements on the screen:\n${clickableItems
             .map(
               (item) =>
-                `  - ID: ${item.id}, Role: ${item.role}, Title: ${item.title}`
+                `  - ID: ${item.id}, Role: ${item.role}, Title: ${item.title}`,
             )
             .join("\n")}`
         : "";
@@ -240,7 +240,7 @@ ipcMain.on("message", async (event, msg) => {
           (item.script ? `\n  - Script:\n${item.script}` : "") +
           (item.error
             ? `\n  - Status: Failed\n  - Error: ${item.error}`
-            : `\n  - Status: Success`)
+            : `\n  - Status: Success`),
       )
       .join("\n\n");
 
@@ -249,7 +249,7 @@ ipcMain.on("message", async (event, msg) => {
     console.time("get-front-app-and-dom");
     try {
       const { stdout } = await execPromise(
-        `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`
+        `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`,
       );
       frontApp = stdout.trim();
       if (frontApp === "Safari") {
@@ -257,9 +257,9 @@ ipcMain.on("message", async (event, msg) => {
         const { stdout: safariDOM } = await execPromise(
           `osascript -e 'tell application "Safari" to do JavaScript "${jsToInject.replace(
             /"/g,
-            '\\"'
+            '\\"',
           )}"'`,
-          { maxBuffer: 1024 * 1024 * 50 } // 50MB
+          { maxBuffer: 1024 * 1024 * 50 }, // 50MB
         );
         structuredDOM = safariDOM;
       }
@@ -320,6 +320,7 @@ ipcMain.on("message", async (event, msg) => {
     event.sender.send("reply", { type: "info", message: stepString });
 
     const clickMatch = stepString.match(/^Click element (\d+)$/i);
+    // console.log(clickMatch);
     if (clickMatch) {
       const elementId = parseInt(clickMatch[1], 10);
       console.time("clickItem");
@@ -357,7 +358,7 @@ ipcMain.on("message", async (event, msg) => {
         if (err) console.log("error" + err);
         //   console.log(typeof img, img);
         console.timeEnd("writeFile-screenshot");
-      }
+      },
     );
 
     console.time("scriptsAgent-run");
@@ -400,7 +401,7 @@ ${
         });
         console.time("run-applescript");
         const { stdout, stderr } = await execPromise(
-          `osascript ./temp/script.scpt`
+          `osascript ./temp/script.scpt`,
         );
         console.timeEnd("run-applescript");
         if (stderr) {

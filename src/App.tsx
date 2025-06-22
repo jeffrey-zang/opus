@@ -11,6 +11,8 @@ import {
   IconCircleCheck,
   IconClick,
 } from "@tabler/icons-react";
+import CodeBlock from "./components/CodeBlock";
+import { useWhisper } from "./hooks/useWhisper/useWhisper";
 
 const iconMap = {
   task: IconNote,
@@ -65,6 +67,14 @@ const App = () => {
       scrollToBottom();
     }
   }, [messages]);
+  const { recording, startRecording, stopRecording, transcript } = useWhisper({
+    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+    streaming: true,
+    timeSlice: 1_000, // 1 second
+    nonStop: true, // keep recording as long as the user is speaking
+    stopTimeout: 5000, // auto stop after 5 seconds
+    removeSilence: true,
+  });
 
   useEffect(() => {
     window.ipcRenderer.on("reply", (_, data: message) => {
@@ -72,15 +82,24 @@ const App = () => {
     });
   }, []);
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (transcript.text && recording) setPrompt(transcript.text);
+  }, [transcript.text]);
+
+  useEffect(() => {
+    if (!recording && prompt != "") {
+      handleSubmit();
+    }
+  }, [recording]);
+
+  const handleSubmit = () => {
+    stopRecording();
 
     if (!firstPromptSent) {
       setFirstPromptSent(true);
     }
     setMessages([]);
     setSentPrompts([prompt]);
-
     window.ipcRenderer.sendMessage(prompt);
     setPrompt("");
   };
@@ -169,11 +188,20 @@ const App = () => {
 
         <form
           className="w-full fixed bottom-0 left-0 p-4"
-          onSubmit={handleSubmit}
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
         >
           <input
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
+            onFocus={() => {
+              startRecording();
+            }}
+            onBlur={() => {
+              stopRecording();
+            }}
             placeholder={
               sentPrompts ? "Provide more info..." : "Enter your prompt..."
             }

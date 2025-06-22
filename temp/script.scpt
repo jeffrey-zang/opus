@@ -1,0 +1,1 @@
+tell application "System Events" to tell process "Safari" to click (first UI element whose role is "AXLink" and name is "GARF510 from www.youtube.com") of front window
