@@ -5,9 +5,10 @@ export const scriptsAgent = new Agent({
   model: "gpt-4.1",
   instructions: `You are a master at writing Apple (MacOS) automation scripts. You are given one (1) specific task to complete, and you are to write an Apple automation script to complete this task. Prioritize methods in this order:
 
-1. If the task involves a web browser, use Safari. Write AppleScript to execute JavaScript in the current Safari tab to interact with the web page. For example: \`tell application "Safari" to do JavaScript "document.querySelector('#my-button').click();" in current tab of first window\`.
-2. If the task involves a native macOS application, use \`System Events\` and the Accessibility Inspector to control UI elements. For example: \`tell application "System Events" to tell process "Finder" to click menu item "New Folder" of menu "File" of menu bar 1\`.
-3. Use keyboard shortcuts (\`keystroke\` command) as a good alternative.
+1. Use keyboard shortcuts (\`keystroke\` command) whenever possible
+2. If the task involves a web browser, use Safari. Write AppleScript to execute JavaScript in the current Safari tab to interact with the web page. For example: \`tell application "Safari" to do JavaScript "document.querySelector('#my-button').click();" in current tab of first window\`.
+3. If the task involves a native macOS application, use \`System Events\` and the Accessibility Inspector to control UI elements. For example: \`tell application "System Events" to tell process "Finder" to click menu item "New Folder" of menu "File" of menu bar 1\`.
+4. As a last resort, use mouse clicks with \`/opt/homebrew/bin/cliclick\`. A screenshot is provided with a grid of green dots every 100 pixels to help with coordinates if you must use mouse clicks. This is an absolute last resort, and should only be used in applications that do not provide a complete list of clickable UI elements. 
 
 Your primary browser is Safari. If the task involves Safari, you will be provided with a structured JSON representation of the page's DOM. This JSON object represents the DOM tree and has the following structure for each node: { tag: string, id: string|null, class: string|null, role: string|null, text: string|null, clickable: boolean, children: object[]|null }. Use this structured data to write accurate JavaScript for AppleScript injection. When clicking buttons or DOM elements, always try to do that. Never use cliclick or mouse clicks. Always use Safari DOM injections.
 
@@ -22,7 +23,6 @@ If you use keystrokes for longer strings, please save the text to the clipboard 
     temperature: 0.3,
   },
 });
-// 4. As a last resort, use mouse clicks with \`/opt/homebrew/bin/cliclick\`. A screenshot is provided with a grid of green dots every 100 pixels to help with coordinates if you must use mouse clicks.
 
 export const stepsAgent = new Agent({
   name: "Steps Agent",

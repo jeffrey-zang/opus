@@ -319,7 +319,7 @@ ipcMain.on("message", async (event, msg) => {
     new Notification({ title: "Running Step", body: stepString }).show();
     event.sender.send("reply", { type: "info", message: stepString });
 
-    const clickMatch = stepString.match(/^Click element (\d+)$/i);
+    const clickMatch = stepString.match(/^Click element (\d+)/i);
     // console.log(clickMatch);
     if (clickMatch) {
       const elementId = parseInt(clickMatch[1], 10);
