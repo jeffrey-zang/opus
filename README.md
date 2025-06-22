@@ -16,5 +16,3 @@ In Latin, **"opus"** means:
 
 - **"magnum opus"** – greatest work/masterpiece
 - **"opus Dei"** – work of God
-
-Let me know if you want declensions or more examples.
