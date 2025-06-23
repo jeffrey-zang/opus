@@ -1,1 +1,1 @@
-tell application "System Events" to key code 125
+tell application "System Events" to keystroke return

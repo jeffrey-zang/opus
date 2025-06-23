@@ -23,6 +23,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const execPromise = promisify(exec);
 
+type message = {
+  type: string;
+  message: string;
+};
+
+type task = {
+  title: string;
+  messages: message[];
+};
+
+const tasks: task[] = [];
+
 export interface ClickableItem {
   id: number;
   role: string;
@@ -89,7 +101,7 @@ function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "click.png"),
     width: 500,
-    height: 140,
+    height: 160,
     resizable: false,
     trafficLightPosition: { x: -100, y: -100 },
     alwaysOnTop: false,
@@ -141,7 +153,7 @@ app.on("activate", () => {
 app.whenReady().then(() => {
   if (process.platform === "darwin") {
     const icon = nativeImage.createFromPath(
-      path.join(process.env.VITE_PUBLIC, "click.png"),
+      path.join(process.env.VITE_PUBLIC, "click.png")
     );
     app.dock.setIcon(icon);
   }
@@ -152,17 +164,32 @@ app.whenReady().then(() => {
   createWindow();
 });
 
-ipcMain.on("message", async (event, msg) => {
-  console.log("Got message:", msg);
-  win?.setSize(500, 500);
+ipcMain.on("resize", async (event, w, h) => {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width, height } = primaryDisplay.workAreaSize;
   if (win) {
     const [winWidth] = win.getSize();
     const x = Math.round(width * 0.85 - winWidth / 2);
-    win.setPosition(x, 50);
+    win.setPosition(x, 50, true);
   }
-  console.log(width, height);
+
+  win?.setSize(w, h, true);
+});
+
+ipcMain.on("message", async (event, msg) => {
+  const currentMessages: message[] = [];
+
+  console.log("Got message:", msg);
+  win?.setSize(500, 500, true);
+
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width, height } = primaryDisplay.workAreaSize;
+  if (win) {
+    const [winWidth] = win.getSize();
+    const x = Math.round(width * 0.85 - winWidth / 2);
+    win.setPosition(x, 50, true);
+  }
+
   console.log("getting steps");
 
   const folderName = `screenshots/${Date.now()}-${msg.replaceAll(" ", "-")}`;
@@ -196,7 +223,7 @@ ipcMain.on("message", async (event, msg) => {
         ? `\n\nHere is a list of clickable elements on the screen:\n${clickableItems
             .map(
               (item) =>
-                `  - ID: ${item.id}, Role: ${item.role}, Title: ${item.title}`,
+                `  - ID: ${item.id}, Role: ${item.role}, Title: ${item.title}`
             )
             .join("\n")}`
         : "";
@@ -240,7 +267,7 @@ ipcMain.on("message", async (event, msg) => {
           (item.script ? `\n  - Script:\n${item.script}` : "") +
           (item.error
             ? `\n  - Status: Failed\n  - Error: ${item.error}`
-            : `\n  - Status: Success`),
+            : `\n  - Status: Success`)
       )
       .join("\n\n");
 
@@ -249,7 +276,7 @@ ipcMain.on("message", async (event, msg) => {
     console.time("get-front-app-and-dom");
     try {
       const { stdout } = await execPromise(
-        `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`,
+        `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`
       );
       frontApp = stdout.trim();
       if (frontApp === "Safari") {
@@ -257,9 +284,9 @@ ipcMain.on("message", async (event, msg) => {
         const { stdout: safariDOM } = await execPromise(
           `osascript -e 'tell application "Safari" to do JavaScript "${jsToInject.replace(
             /"/g,
-            '\\"',
+            '\\"'
           )}"'`,
-          { maxBuffer: 1024 * 1024 * 50 }, // 50MB
+          { maxBuffer: 1024 * 1024 * 50 } // 50MB
         );
         structuredDOM = safariDOM;
       }
@@ -314,13 +341,21 @@ ipcMain.on("message", async (event, msg) => {
         message: stepString.replace(" STOP", ""),
       });
 
+      currentMessages.push({
+        type: "complete",
+        message: stepString.replace(" STOP", ""),
+      });
+      tasks.push({ title: msg, messages: currentMessages });
+      event.sender.send("update-tasks", tasks);
+
       break;
     }
     new Notification({ title: "Running Step", body: stepString }).show();
     event.sender.send("reply", { type: "info", message: stepString });
 
+    currentMessages.push({ type: "info", message: stepString });
+
     const clickMatch = stepString.match(/^Click element (\d+)/i);
-    // console.log(clickMatch);
     if (clickMatch) {
       const elementId = parseInt(clickMatch[1], 10);
       console.time("clickItem");
@@ -358,7 +393,7 @@ ipcMain.on("message", async (event, msg) => {
         if (err) console.log("error" + err);
         //   console.log(typeof img, img);
         console.timeEnd("writeFile-screenshot");
-      },
+      }
     );
 
     console.time("scriptsAgent-run");
@@ -401,7 +436,7 @@ ${
         });
         console.time("run-applescript");
         const { stdout, stderr } = await execPromise(
-          `osascript ./temp/script.scpt`,
+          `osascript ./temp/script.scpt`
         );
         console.timeEnd("run-applescript");
         if (stderr) {

@@ -9,17 +9,22 @@ import {
   IconPointer,
   IconCamera,
   IconCircleCheck,
+  IconLayoutSidebar,
   IconClick,
+  IconMenu2,
 } from "@tabler/icons-react";
-import CodeBlock from "./components/CodeBlock";
+import { ipcMain } from "electron";
 import { useWhisper } from "./hooks/useWhisper/useWhisper";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 
 const iconMap = {
-  task: IconNote,
   thinking: IconBubble,
   info: IconInfoCircle,
   error: IconExclamationCircle,
   typing: IconKeyboard,
+  type: IconKeyboard,
+  press: IconKeyboard,
+  scroll: IconKeyboard,
   click: IconPointer,
   screenshot: IconCamera,
   complete: IconCircleCheck,
@@ -51,12 +56,26 @@ type message = {
   message: string;
 };
 
+type task = {
+  title: string;
+  messages: message[];
+  prompt: string;
+};
+
 const App = () => {
   const [prompt, setPrompt] = useState("");
   const [sentPrompts, setSentPrompts] = useState<string[]>([]);
-  const [firstPromptSent, setFirstPromptSent] = useState<boolean>(false);
+  const [largeAndToTheRight, setLargeAndToTheRight] = useState<boolean>(false);
   const [messages, setMessages] = useState<message[]>([]);
+  const [tasks, setTasks] = useState<task[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [opusIconHovered, setOpusIconHovered] = useState<boolean>(false);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const inputRef = useRef<null | HTMLInputElement>(null);
+  const [prompting, setPrompting] = useState(false);
+  const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [messagesRef] = useAutoAnimate();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -67,124 +86,223 @@ const App = () => {
       scrollToBottom();
     }
   }, [messages]);
-  const { recording, startRecording, stopRecording, transcript } = useWhisper({
+  const { speaking, startRecording, stopRecording, transcript } = useWhisper({
     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
     streaming: true,
     timeSlice: 1_000, // 1 second
-    nonStop: true, // keep recording as long as the user is speaking
-    stopTimeout: 5000, // auto stop after 5 seconds
-    removeSilence: true,
+    // autoStart: true,
+    // nonStop: true, // keep recording as long as the user is speaking
+    // stopTimeout: 5000, // auto stop after 5 seconds
+    // removeSilence: true,
   });
 
   useEffect(() => {
     window.ipcRenderer.on("reply", (_, data: message) => {
-      setMessages((prev) => [...prev, data]);
+      setMessages((prev) => {
+        const exists = prev.some(
+          (msg) => msg.type === data.type && msg.message === data.message
+        );
+        return exists ? prev : [...prev, data];
+      });
+    });
+    window.ipcRenderer.on("update-tasks", (_, data: task[]) => {
+      setTasks(data);
     });
   }, []);
 
   useEffect(() => {
-    if (transcript.text && recording) setPrompt(transcript.text);
+    if (transcript.text) {
+      const normalized = transcript.text
+        .toLowerCase()
+        .replaceAll(".", "")
+        .replaceAll(",", "")
+        .replaceAll("!", "");
+      // console.log(normalized);
+      if (normalized.endsWith("hey opus") && inputRef.current && !prompting) {
+        console.log("start prompting");
+        // stopRecording();
+        // await new Promise((res) => setTimeout(res, 2000));
+        // console.log("start");
+        // startRecording();
+        inputRef.current.focus();
+      } else if (prompting) {
+        const index = transcript.text.search(/hey,? opus\.?!?/gim);
+        // setPrompt(index == -1 ? transcript.text : transcript.text.slice(index));
+        console.log("PROMPT: " + prompt);
+      }
+    }
   }, [transcript.text]);
 
   useEffect(() => {
-    if (!recording && prompt != "") {
-      handleSubmit();
+    if (prompt != "" && prompting) {
+      console.log(speaking, timeout.current);
+      if (timeout.current) {
+        clearTimeout(timeout.current);
+        console.log("no more timeout");
+      }
+      if (!speaking) {
+        console.log("set timeout");
+        timeout.current = setTimeout(handleSubmit, 5000);
+        console.log(timeout.current);
+      }
     }
-  }, [recording]);
+  }, [speaking, prompt]);
 
   const handleSubmit = () => {
-    stopRecording();
+    // stopRecording();
 
-    if (!firstPromptSent) {
-      setFirstPromptSent(true);
+    inputRef.current?.blur();
+    if (!largeAndToTheRight) {
+      setLargeAndToTheRight(true);
     }
     setMessages([]);
     setSentPrompts([prompt]);
+
     window.ipcRenderer.sendMessage(prompt);
     setPrompt("");
   };
 
+  const handleSidebarButtonClicked = () => {
+    window.ipcRenderer.send("resize", 500, 500);
+    setSidebarOpen(true);
+    setLargeAndToTheRight(true);
+  };
+
   return (
     <div className="bg-bg h-screen">
-      {firstPromptSent && (
-        <div className="mb-16">
-          <div className="fixed top-0 bg-bg px-6 pt-6 w-full">
-            <p className="text-white/65 mb-4">{sentPrompts[0]}</p>
-            <div className="border-b-1 border-white/25"></div>
-          </div>
+      {largeAndToTheRight && sentPrompts.length ? (
+        <div className="fixed top-0 bg-bg z-20 px-6 pt-16 w-full">
+          <p className="text-white/65 mb-4">{sentPrompts[0]}</p>
+          <div className="border-b-1 border-white/25"></div>
         </div>
+      ) : (
+        <></>
       )}
+
+      {largeAndToTheRight ? <div className="pb-28"></div> : <></>}
 
       <div className="flex flex-col bg-bg text-tx px-4 bg-2">
         <div className="flex-grow">
-          {firstPromptSent && messages.length === 0 && (
+          {largeAndToTheRight && messages.length === 0 && sentPrompts.length ? (
             <div className={"px-6 py-4 rounded-md my-4 ring-2 ring-ui bg-bg-2"}>
               <div className="flex gap-2 items-center">
                 <IconBubble stroke={1.5} />
                 <p>Opus is thinking...</p>
               </div>
             </div>
+          ) : (
+            <></>
           )}
-          {messages.map(({ type, message }, i) => {
-            console.log(type, message);
-            if (!(type in iconMap)) type = "info";
-            const Icon = iconMap[type as iconType];
-            const bg =
-              type in specialColors
-                ? specialColors[type as specialColorType].bgColor
-                : "bg-bg-2";
-            const ring =
-              type in specialColors
-                ? specialColors[type as specialColorType].ringColor
-                : "";
-            const color =
-              type in specialColors
-                ? specialColors[type as specialColorType].color
-                : "";
 
-            const titleCaseType = type[0].toUpperCase() + type.slice(1);
+          <div ref={messagesRef} className="pb-8">
+            {messages.map(({ type, message }, i) => {
+              console.log(type, message);
+              const verb = message.split(" ")[0].toLowerCase();
 
-            return (
-              <div
-                key={i}
-                className={
-                  "px-6 py-4 rounded-md flex flex-col gap-2 my-4 ring-2 " +
-                  bg +
-                  " " +
-                  ring +
-                  " " +
-                  color
-                }
-              >
-                {message.length > 100 ? (
-                  <>
+              if (!(type in iconMap)) type = "info";
+              if (verb in iconMap) type = verb;
+
+              const Icon = iconMap[type as iconType];
+              const bg =
+                type in specialColors
+                  ? specialColors[type as specialColorType].bgColor
+                  : "bg-bg-2";
+              const ring =
+                type in specialColors
+                  ? specialColors[type as specialColorType].ringColor
+                  : "ring-transparent";
+              const color =
+                type in specialColors
+                  ? specialColors[type as specialColorType].color
+                  : "";
+
+              const titleCaseType = type[0].toUpperCase() + type.slice(1);
+
+              return (
+                <div
+                  key={i}
+                  className={
+                    "px-6 py-4 rounded-md flex flex-col gap-2 my-4 ring-1 " +
+                    bg +
+                    " " +
+                    ring +
+                    " " +
+                    color
+                  }
+                >
+                  {message.length > 100 ? (
+                    <>
+                      <div className="flex gap-2 items-center">
+                        <Icon stroke={1.5} />
+                        <strong>{titleCaseType}</strong>
+                      </div>
+                      <p>{message}</p>
+                    </>
+                  ) : (
                     <div className="flex gap-2 items-center">
                       <Icon stroke={1.5} />
-                      <strong>{titleCaseType}</strong>
+                      <p>{message}</p>
                     </div>
-                    <p>{message}</p>
-                  </>
-                ) : (
-                  <div className="flex gap-2 items-center">
-                    <Icon stroke={1.5} />
-                    <p>{message}</p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  )}
+                </div>
+              );
+            })}
+          </div>
           <div ref={messagesEndRef} />
           {messages.length == 0 && <br />}
         </div>
 
-        {!firstPromptSent && (
-          <div className="mb-4 ">
+        {largeAndToTheRight ? (
+          <button
+            className="fixed top-8 left-8 z-[999]"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            <IconMenu2 />
+          </button>
+        ) : (
+          <div className="mb-4 text-white">
             <h1 className="font-[Comorant_Garamond] font-serif text-2xl text-tx flex items-center gap-2 font-bold">
-              <IconClick /> Opus
+              <button
+                onMouseEnter={() => setOpusIconHovered(true)}
+                onMouseLeave={() => setOpusIconHovered(false)}
+                className="hover:brightness-115"
+                onClick={handleSidebarButtonClicked}
+              >
+                {opusIconHovered ? <IconMenu2 /> : <IconClick />}
+              </button>{" "}
+              Opus
             </h1>
-            <p></p>
           </div>
         )}
+
+        {sidebarOpen && (
+          <div className="overlay top-0 left-0 absolute w-full h-screen bg-black/50 z-50 transition duration-500"></div>
+        )}
+        <nav
+          className={
+            "fixed top-0 w-1/3 h-screen bg-bg-2 border-ui border flex flex-col p-8 rounded-md duration-500 z-100" +
+            (sidebarOpen ? " left-0" : " -left-1/3")
+          }
+        >
+          <h2 className="font-bold text-xl mb-2 ml-8 translate-y-[-3px]">
+            Tasks
+          </h2>
+          {tasks.length
+            ? tasks.map((task) => (
+                <button
+                  onClick={() => {
+                    const selectedTask = tasks.find(
+                      (t) => t.title === task.title
+                    );
+                    setSentPrompts([selectedTask?.title || ""]);
+                    setMessages(selectedTask?.messages || []);
+                  }}
+                >
+                  {task.title}
+                </button>
+              ))
+            : "No tasks found. Create one by entering a prompt!"}
+        </nav>
 
         <form
           className="w-full fixed bottom-0 left-0 p-4"
@@ -194,16 +312,19 @@ const App = () => {
           }}
         >
           <input
+            ref={inputRef}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onFocus={() => {
-              startRecording();
+              setPrompting(true);
             }}
             onBlur={() => {
-              stopRecording();
+              setPrompting(false);
             }}
             placeholder={
-              sentPrompts ? "Provide more info..." : "Enter your prompt..."
+              largeAndToTheRight && sentPrompts.length
+                ? "Provide more info..."
+                : "Enter your prompt..."
             }
             className="flex-grow p-2 w-full h-full rounded-md bg-bg-2 focus:outline-none focus:ring focus:ring-ui-2 placeholder:text-tx-3 resize-none"
           />

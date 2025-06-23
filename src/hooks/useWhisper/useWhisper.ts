@@ -1,7 +1,7 @@
 import { useEffectAsync, useMemoAsync } from "@chengsokdara/react-hooks-async";
 import type { RawAxiosRequestHeaders } from "axios";
 import type { Harker } from "hark";
-import type { Encoder } from "lamejs";
+import type { Encoder } from "@breezystack/lamejs";
 import { useEffect, useRef, useState } from "react";
 import type { Options, RecordRTCPromisesHandler } from "recordrtc";
 import {
@@ -183,11 +183,11 @@ export const useWhisper: UseWhisperHook = (config) => {
           };
           recorder.current = new RecordRTCPromisesHandler(
             stream.current,
-            recorderConfig,
+            recorderConfig
           );
         }
         if (!encoder.current) {
-          const { Mp3Encoder } = await import("lamejs");
+          const { Mp3Encoder } = await import("@breezystack/lamejs");
           encoder.current = new Mp3Encoder(1, 44100, 96);
         }
         const recordState = await recorder.current.getState();
@@ -402,7 +402,7 @@ export const useWhisper: UseWhisperHook = (config) => {
               "44100",
               "-af", // Audio filter = remove silence from start to end with 2 seconds in between
               silenceRemoveCommand,
-              "out.mp3", // Output
+              "out.mp3" // Output
             );
             const out = ffmpeg.FS("readFile", "out.mp3");
             console.log({ out: out.buffer.byteLength });
@@ -520,7 +520,7 @@ export const useWhisper: UseWhisperHook = (config) => {
       });
       return response.data.text;
     },
-    [apiKey, mode, whisperConfig],
+    [apiKey, mode, whisperConfig]
   );
 
   return {

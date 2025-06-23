@@ -10,9 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
+    "@chengsokdara/react-hooks-async": "^0.0.2",
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@formkit/auto-animate": "^0.8.2",
     "@openai/agents": "^0.0.9",
     "@tabler/icons-react": "^3.34.0",
     "@tailwindcss/vite": "^4.1.10",
+    "axios": "^1.10.0",
     "dotenv": "^16.5.0",
     "jimp": "^1.6.0",
     "react": "^18.2.0",
@@ -22,8 +27,6 @@
     "tailwindcss": "^4.1.10"
   },
   "devDependencies": {
-    "lamejs": "^1.2.1",
-    "recordrtc": "^5.6.2",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
@@ -35,6 +38,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "hark": "^1.2.3",
+    "recordrtc": "^5.6.2",
     "shiki": "^3.7.0",
     "typescript": "^5.2.2",
     "vite": "^5.1.6",
