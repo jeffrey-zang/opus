@@ -44,7 +44,7 @@ export interface ClickableItem {
 
 export async function fetchAllClickableItems(): Promise<ClickableItem[]> {
   try {
-    const { stdout } = await execPromise("./accessibility.swift json-list");
+    const { stdout } = await execPromise("./swift/accessibility.swift json-list");
     if (!stdout) {
       return [];
     }
@@ -61,7 +61,7 @@ export async function clickItem(id: number): Promise<{
   error?: string;
 }> {
   try {
-    const { stdout } = await execPromise(`./accessibility.swift click ${id}`);
+    const { stdout } = await execPromise(`./swift/accessibility.swift click ${id}`);
     return JSON.parse(stdout);
   } catch (error) {
     console.error(`Failed to click item ${id}:`, error);
