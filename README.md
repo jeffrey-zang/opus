@@ -1,3 +1,7 @@
+# disclaimer ⚠️
+we haven't published any releases yet because the code is currently quite scrappy, just a POC for the hackathon. 
+we are currently working on a rewrite that will come with better build instructions + cleaner code
+
 # opus
 
 In Latin, **"opus"** means:
