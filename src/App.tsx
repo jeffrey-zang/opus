@@ -100,7 +100,7 @@ const App = () => {
     window.ipcRenderer.on("reply", (_, data: message) => {
       setMessages((prev) => {
         const exists = prev.some(
-          (msg) => msg.type === data.type && msg.message === data.message
+          (msg) => msg.type === data.type && msg.message === data.message,
         );
         return exists ? prev : [...prev, data];
       });
@@ -133,20 +133,20 @@ const App = () => {
     }
   }, [transcript.text]);
 
-  useEffect(() => {
-    if (prompt != "" && prompting) {
-      console.log(speaking, timeout.current);
-      if (timeout.current) {
-        clearTimeout(timeout.current);
-        console.log("no more timeout");
-      }
-      if (!speaking) {
-        console.log("set timeout");
-        timeout.current = setTimeout(handleSubmit, 5000);
-        console.log(timeout.current);
-      }
-    }
-  }, [speaking, prompt]);
+  // useEffect(() => {
+  //   if (prompt != "" && prompting) {
+  //     console.log(speaking, timeout.current);
+  //     if (timeout.current) {
+  //       clearTimeout(timeout.current);
+  //       console.log("no more timeout");
+  //     }
+  //     if (!speaking) {
+  //       console.log("set timeout");
+  //       timeout.current = setTimeout(handleSubmit, 5000);
+  //       console.log(timeout.current);
+  //     }
+  //   }
+  // }, [speaking, prompt]);
 
   const handleSubmit = () => {
     // stopRecording();
@@ -292,7 +292,7 @@ const App = () => {
                 <button
                   onClick={() => {
                     const selectedTask = tasks.find(
-                      (t) => t.title === task.title
+                      (t) => t.title === task.title,
                     );
                     setSentPrompts([selectedTask?.title || ""]);
                     setMessages(selectedTask?.messages || []);

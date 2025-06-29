@@ -1,1 +1,3 @@
-tell application "System Events" to keystroke return
+tell application "System Events"
+	keystroke space
+end tell

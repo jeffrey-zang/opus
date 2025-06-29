@@ -186,9 +186,9 @@ ipcMain.on("message", async (event, msg) => {
             )
             .join("\n")}`
         : "";
-    console.log(clickableItemsText);
+    // console.log(clickableItemsText);
 
-    takeScreenshot(width, height);
+    const img = await takeScreenshot(width, height);
 
     const formattedHistory = history
       .map(
