@@ -1,0 +1,115 @@
+diff --git a/electron/ai.ts b/electron/ai.ts
+index 1e3e4ae..2fa624b 100644
+--- a/electron/ai.ts
++++ b/electron/ai.ts
+@@ -5,7 +5,7 @@ export const scriptsAgent = new Agent({
+   model: "gpt-4.1",
+   instructions: `You are a master at writing Apple (MacOS) automation scripts. You are given one (1) specific task to complete, and you are to write an Apple automation script to complete this task. Prioritize methods in this order:
+ 
+-1. Use keyboard shortcuts (\`keystroke\` command) whenever possible
++1. Use keyboard events (\`keystroke\` command) whenever possible. This includes typing, and keyboard shortcuts. These are usually more reliable than GUI navigation
+ 2. If the task involves a web browser, use Safari. Write AppleScript to execute JavaScript in the current Safari tab to interact with the web page. For example: \`tell application "Safari" to do JavaScript "document.querySelector('#my-button').click();" in current tab of first window\`.
+ 3. If the task involves a native macOS application, use \`System Events\` and the Accessibility Inspector to control UI elements. For example: \`tell application "System Events" to tell process "Finder" to click menu item "New Folder" of menu "File" of menu bar 1\`.
+ 4. As a last resort, use mouse clicks with \`/opt/homebrew/bin/cliclick\`. A screenshot is provided with a grid of green dots every 100 pixels to help with coordinates if you must use mouse clicks. This is an absolute last resort, and should only be used in applications that do not provide a complete list of clickable UI elements. 
+diff --git a/src/App.tsx b/src/App.tsx
+index 6d4ae18..ffdbccb 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -57,6 +57,9 @@ const App = () => {
+   const [firstPromptSent, setFirstPromptSent] = useState<boolean>(false);
+   const [messages, setMessages] = useState<message[]>([]);
+   const messagesEndRef = useRef<null | HTMLDivElement>(null);
++  const inputRef = useRef<null | HTMLInputElement>(null);
++  const [prompting, setPrompting] = useState(false);
++  const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+ 
+   const scrollToBottom = () => {
+     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+@@ -67,13 +70,14 @@ const App = () => {
+       scrollToBottom();
+     }
+   }, [messages]);
+-  const { recording, startRecording, stopRecording, transcript } = useWhisper({
++  const { speaking, startRecording, stopRecording, transcript } = useWhisper({
+     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+     streaming: true,
+     timeSlice: 1_000, // 1 second
+-    nonStop: true, // keep recording as long as the user is speaking
+-    stopTimeout: 5000, // auto stop after 5 seconds
+-    removeSilence: true,
++    autoStart: true,
++    // nonStop: true, // keep recording as long as the user is speaking
++    // stopTimeout: 5000, // auto stop after 5 seconds
++    // removeSilence: true,
+   });
+ 
+   useEffect(() => {
+@@ -83,18 +87,46 @@ const App = () => {
+   }, []);
+ 
+   useEffect(() => {
+-    if (transcript.text && recording) setPrompt(transcript.text);
++    if (transcript.text) {
++      const normalized = transcript.text
++        .toLowerCase()
++        .replaceAll(".", "")
++        .replaceAll(",", "")
++        .replaceAll("!", "");
++      // console.log(normalized);
++      if (normalized.endsWith("hey opus") && inputRef.current && !prompting) {
++        console.log("start prompting");
++        // stopRecording();
++        // await new Promise((res) => setTimeout(res, 2000));
++        // console.log("start");
++        // startRecording();
++        inputRef.current.focus();
++      } else if (prompting) {
++        const index = transcript.text.search(/hey,? opus\.?!?/gim);
++        setPrompt(transcript.text.slice(index));
++        console.log(prompt);
++      }
++    }
+   }, [transcript.text]);
+ 
+   useEffect(() => {
+-    if (!recording && prompt != "") {
+-      handleSubmit();
++    if (prompt != "" && prompting) {
++      console.log(speaking, timeout.current);
++      if (speaking && timeout.current) {
++        clearTimeout(timeout.current);
++        console.log("no more timeout");
++      } else if (!speaking) {
++        console.log("set timeout");
++        timeout.current = setTimeout(handleSubmit, 3000);
++        console.log(timeout.current);
++      }
+     }
+-  }, [recording]);
++  }, [speaking]);
+ 
+   const handleSubmit = () => {
+-    stopRecording();
++    // stopRecording();
+ 
++    console.log(prompt);
+     if (!firstPromptSent) {
+       setFirstPromptSent(true);
+     }
+@@ -194,13 +226,14 @@ const App = () => {
+           }}
+         >
+           <input
++            ref={inputRef}
+             value={prompt}
+             onChange={(e) => setPrompt(e.target.value)}
+             onFocus={() => {
+-              startRecording();
++              setPrompting(true);
+             }}
+             onBlur={() => {
+-              stopRecording();
++              setPrompting(false);
+             }}
+             placeholder={
+               sentPrompts ? "Provide more info..." : "Enter your prompt..."

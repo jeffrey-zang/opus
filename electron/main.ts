@@ -14,7 +14,8 @@ import path from "node:path";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import fs, { writeFile } from "fs";
-import { Jimp } from "jimp";
+import { clickItem, fetchAllClickableItems } from "./tools/elementClick.ts";
+import { takeScreenshot } from "./tools/screenshot.ts";
 
 app.setName("Opus");
 app.setAboutPanelOptions({ applicationName: "Opus" });
@@ -34,47 +35,6 @@ type task = {
 };
 
 const tasks: task[] = [];
-
-export interface ClickableItem {
-  id: number;
-  role: string;
-  title: string;
-  description: string;
-}
-
-export async function fetchAllClickableItems(): Promise<ClickableItem[]> {
-  try {
-    const { stdout } = await execPromise("./swift/accessibility.swift json-list");
-    if (!stdout) {
-      return [];
-    }
-    return JSON.parse(stdout) as ClickableItem[];
-  } catch (error) {
-    console.error("Failed to fetch clickable items:", error);
-    return [];
-  }
-}
-
-export async function clickItem(id: number): Promise<{
-  success: boolean;
-  clicked_element?: { id: number; title: string };
-  error?: string;
-}> {
-  try {
-    const { stdout } = await execPromise(`./swift/accessibility.swift click ${id}`);
-    return JSON.parse(stdout);
-  } catch (error) {
-    console.error(`Failed to click item ${id}:`, error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    try {
-      return JSON.parse(errorMessage);
-    } catch {
-      return { success: false, error: errorMessage };
-    }
-  }
-}
-
 // The built directory structure
 //
 // ├─┬─┬ dist
@@ -153,7 +113,7 @@ app.on("activate", () => {
 app.whenReady().then(() => {
   if (process.platform === "darwin") {
     const icon = nativeImage.createFromPath(
-      path.join(process.env.VITE_PUBLIC, "click.png")
+      path.join(process.env.VITE_PUBLIC, "click.png"),
     );
     app.dock.setIcon(icon);
   }
@@ -212,7 +172,6 @@ ipcMain.on("message", async (event, msg) => {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     console.time("while-loop-iteration");
-    console.log("taking screenshot");
 
     console.time("fetchAllClickableItems");
     const clickableItems = await fetchAllClickableItems();
@@ -223,42 +182,13 @@ ipcMain.on("message", async (event, msg) => {
         ? `\n\nHere is a list of clickable elements on the screen:\n${clickableItems
             .map(
               (item) =>
-                `  - ID: ${item.id}, Role: ${item.role}, Title: ${item.title}`
+                `  - ID: ${item.id}, Role: ${item.role}, Title: ${item.title}`,
             )
             .join("\n")}`
         : "";
     console.log(clickableItemsText);
 
-    // const tmpPath = path.join(os.tmpdir(), "temp_screenshot.png");
-    const tmpPath = path.join(__dirname, `${Date.now()}-screenshot.png`);
-
-    console.time("screenshot-and-process");
-    await execPromise(`screencapture -C -x "${tmpPath}"`);
-    const image = await Jimp.read(tmpPath);
-    image.resize({ w: width, h: height });
-    console.log(image.width, image.height);
-
-    const dotColor = 0x00ff00ff; // red with full alpha
-    const radius = 5;
-
-    for (let y = 0; y < image.bitmap.height; y += 100) {
-      for (let x = 0; x < image.bitmap.width; x += 100) {
-        for (let dy = -radius; dy <= radius; dy++) {
-          for (let dx = -radius; dx <= radius; dx++) {
-            const dist = dx * dx + dy * dy;
-            if (dist <= radius * radius) {
-              image.setPixelColor(dotColor, x + dx, y + dy);
-            }
-          }
-        }
-      }
-    }
-
-    const img = await image.getBase64("image/png");
-    fs.unlink(tmpPath, (err) => {
-      if (err) console.error(err);
-    });
-    console.timeEnd("screenshot-and-process");
+    takeScreenshot(width, height);
 
     const formattedHistory = history
       .map(
@@ -267,7 +197,7 @@ ipcMain.on("message", async (event, msg) => {
           (item.script ? `\n  - Script:\n${item.script}` : "") +
           (item.error
             ? `\n  - Status: Failed\n  - Error: ${item.error}`
-            : `\n  - Status: Success`)
+            : `\n  - Status: Success`),
       )
       .join("\n\n");
 
@@ -276,7 +206,7 @@ ipcMain.on("message", async (event, msg) => {
     console.time("get-front-app-and-dom");
     try {
       const { stdout } = await execPromise(
-        `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`
+        `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`,
       );
       frontApp = stdout.trim();
       if (frontApp === "Safari") {
@@ -284,9 +214,9 @@ ipcMain.on("message", async (event, msg) => {
         const { stdout: safariDOM } = await execPromise(
           `osascript -e 'tell application "Safari" to do JavaScript "${jsToInject.replace(
             /"/g,
-            '\\"'
+            '\\"',
           )}"'`,
-          { maxBuffer: 1024 * 1024 * 50 } // 50MB
+          { maxBuffer: 1024 * 1024 * 50 }, // 50MB
         );
         structuredDOM = safariDOM;
       }
@@ -393,7 +323,7 @@ ipcMain.on("message", async (event, msg) => {
         if (err) console.log("error" + err);
         //   console.log(typeof img, img);
         console.timeEnd("writeFile-screenshot");
-      }
+      },
     );
 
     console.time("scriptsAgent-run");
@@ -436,7 +366,7 @@ ${
         });
         console.time("run-applescript");
         const { stdout, stderr } = await execPromise(
-          `osascript ./temp/script.scpt`
+          `osascript ./temp/script.scpt`,
         );
         console.timeEnd("run-applescript");
         if (stderr) {
