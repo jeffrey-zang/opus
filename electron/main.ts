@@ -1,21 +1,23 @@
+import { run } from "@openai/agents";
 import "dotenv/config";
 import {
   app,
   BrowserWindow,
   ipcMain,
-  screen,
-  Notification,
   nativeImage,
+  Notification,
+  screen,
 } from "electron";
-import { fileURLToPath } from "node:url";
-import { run } from "@openai/agents";
-import { stepsAgent, scriptsAgent } from "./ai.ts";
-import path from "node:path";
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
 import fs, { writeFile } from "fs";
+import { exec } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+import { stepsAgent } from "./ai.ts";
+import { getDOM } from "./tools/dom.ts";
 import { clickItem, fetchAllClickableItems } from "./tools/elementClick.ts";
 import { takeScreenshot } from "./tools/screenshot.ts";
+import { generateScript, runScript } from "./tools/script.ts";
 
 app.setName("Opus");
 app.setAboutPanelOptions({ applicationName: "Opus" });
@@ -201,25 +203,16 @@ ipcMain.on("message", async (event, msg) => {
       )
       .join("\n\n");
 
+    // get front app
     let frontApp = "";
-    let structuredDOM = "";
     console.time("get-front-app-and-dom");
+    const { stdout } = await execPromise(
+      `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`,
+    );
+    frontApp = stdout.trim();
+    let structuredDOM = "";
     try {
-      const { stdout } = await execPromise(
-        `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`,
-      );
-      frontApp = stdout.trim();
-      if (frontApp === "Safari") {
-        const jsToInject = `function serializeDOM(node) { if (!node || node.nodeType !== 1) return null; const children = [...node.children].map(serializeDOM).filter(Boolean); return { tag: node.tagName, id: node.id || null, class: node.className || null, role: node.getAttribute('role') || null, text: node.innerText?.trim().slice(0, 100) || null, clickable: typeof node.onclick === 'function' || ['A', 'BUTTON'].includes(node.tagName), children: children.length ? children : null }; } JSON.stringify(serializeDOM(document.body));`;
-        const { stdout: safariDOM } = await execPromise(
-          `osascript -e 'tell application "Safari" to do JavaScript "${jsToInject.replace(
-            /"/g,
-            '\\"',
-          )}"'`,
-          { maxBuffer: 1024 * 1024 * 50 }, // 50MB
-        );
-        structuredDOM = safariDOM;
-      }
+      structuredDOM = await getDOM(frontApp);
     } catch (e) {
       console.error("Could not get Safari DOM", e);
     }
@@ -257,6 +250,7 @@ ipcMain.on("message", async (event, msg) => {
       await run(stepsAgent, [{ role: "user", content: userContent }])
     ).state._currentStep;
     console.timeEnd("stepsAgent-run");
+
     console.log(stepsOutput);
     if (stepsOutput?.type != "next_step_final_output") return;
     const stepString = stepsOutput?.output;
@@ -326,15 +320,8 @@ ipcMain.on("message", async (event, msg) => {
       },
     );
 
-    console.time("scriptsAgent-run");
-    const scriptOutput = (
-      await run(scriptsAgent, [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: `Instruction to execute: ${stepString}
+    let script = await generateScript(
+      `Instruction to execute: ${stepString}
 ${formattedHistory ? `\nLast 5 steps:\n${formattedHistory}` : ""}
 The current application in focus is ${frontApp}.
 Dimensions of window: ${width}x${height}
@@ -344,35 +331,18 @@ ${
     ? `\nHere is a structured JSON representation of the DOM of the current Safari page:\n${structuredDOM}`
     : ""
 }`,
-            },
-            { type: "input_image", image: img },
-          ],
-        },
-      ])
-    ).state._currentStep;
-    console.timeEnd("scriptsAgent-run");
-    if (scriptOutput?.type != "next_step_final_output") continue;
-    let script = scriptOutput?.output;
+      img,
+    );
 
     if (script) {
       script = script.replaceAll("```applescript", "").replaceAll("```", "");
       try {
         // const scriptWithEscapedQuotes = script.replace(/"/g, '\\"');
-        console.log(script);
-        console.time("writeFile-script");
-        writeFile("./temp/script.scpt", script, (err) => {
-          if (err) console.error(err);
-          console.timeEnd("writeFile-script");
-        });
-        console.time("run-applescript");
-        const { stdout, stderr } = await execPromise(
-          `osascript ./temp/script.scpt`,
-        );
-        console.timeEnd("run-applescript");
+        const { stdout, stderr } = await runScript(script);
         if (stderr) {
           console.error(`stderr: ${stderr}`);
           history.push({ step: stepString, script, error: stderr });
-          continue;
+          return;
         }
         if (stdout) {
           console.log(stdout);
