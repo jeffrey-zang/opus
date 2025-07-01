@@ -1,1 +1,1 @@
-tell application "System Events" to keystroke return
+tell application "System Events" to key code 124

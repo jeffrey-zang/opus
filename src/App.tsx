@@ -1,6 +1,5 @@
-import { useState, FormEvent, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  IconNote,
   IconExclamationCircle,
   IconInfoCircle,
   IconSend2,
@@ -9,12 +8,9 @@ import {
   IconPointer,
   IconCamera,
   IconCircleCheck,
-  IconLayoutSidebar,
   IconClick,
   IconMenu2,
 } from "@tabler/icons-react";
-import { ipcMain } from "electron";
-import { useWhisper } from "./hooks/useWhisper/useWhisper";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 
 const iconMap = {
@@ -72,8 +68,6 @@ const App = () => {
   const [opusIconHovered, setOpusIconHovered] = useState<boolean>(false);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
   const inputRef = useRef<null | HTMLInputElement>(null);
-  const [prompting, setPrompting] = useState(false);
-  const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [messagesRef] = useAutoAnimate();
 
@@ -86,15 +80,6 @@ const App = () => {
       scrollToBottom();
     }
   }, [messages]);
-  const { speaking, startRecording, stopRecording, transcript } = useWhisper({
-    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-    streaming: true,
-    timeSlice: 1_000, // 1 second
-    // autoStart: true,
-    // nonStop: true, // keep recording as long as the user is speaking
-    // stopTimeout: 5000, // auto stop after 5 seconds
-    // removeSilence: true,
-  });
 
   useEffect(() => {
     window.ipcRenderer.on("reply", (_, data: message) => {
@@ -110,47 +95,7 @@ const App = () => {
     });
   }, []);
 
-  useEffect(() => {
-    if (transcript.text) {
-      const normalized = transcript.text
-        .toLowerCase()
-        .replaceAll(".", "")
-        .replaceAll(",", "")
-        .replaceAll("!", "");
-      // console.log(normalized);
-      if (normalized.endsWith("hey opus") && inputRef.current && !prompting) {
-        console.log("start prompting");
-        // stopRecording();
-        // await new Promise((res) => setTimeout(res, 2000));
-        // console.log("start");
-        // startRecording();
-        inputRef.current.focus();
-      } else if (prompting) {
-        const index = transcript.text.search(/hey,? opus\.?!?/gim);
-        // setPrompt(index == -1 ? transcript.text : transcript.text.slice(index));
-        console.log("PROMPT: " + prompt);
-      }
-    }
-  }, [transcript.text]);
-
-  useEffect(() => {
-    if (prompt != "" && prompting) {
-      console.log(speaking, timeout.current);
-      if (timeout.current) {
-        clearTimeout(timeout.current);
-        console.log("no more timeout");
-      }
-      if (!speaking) {
-        console.log("set timeout");
-        timeout.current = setTimeout(handleSubmit, 5000);
-        console.log(timeout.current);
-      }
-    }
-  }, [speaking, prompt]);
-
   const handleSubmit = () => {
-    // stopRecording();
-
     inputRef.current?.blur();
     if (!largeAndToTheRight) {
       setLargeAndToTheRight(true);
@@ -315,12 +260,6 @@ const App = () => {
             ref={inputRef}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            onFocus={() => {
-              setPrompting(true);
-            }}
-            onBlur={() => {
-              setPrompting(false);
-            }}
             placeholder={
               largeAndToTheRight && sentPrompts.length
                 ? "Provide more info..."
