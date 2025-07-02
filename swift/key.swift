@@ -32,10 +32,24 @@ let SPECIAL_KEYS: [String: CGKeyCode] = [
   "tab": 48,
   "esc": 53, "escape": 53,
   "space": 49, "spc": 49,
-  "delete": 51, "bsp": 51, "del": 51,
-  "up": 126, "dn": 125, "down": 125,
-  "lt": 123, "left": 123,
-  "rt": 124, "right": 124,
+  "delete": 51, "backspace": 51, "bsp": 51, "del": 51,
+  "up": 126, "up_arrow": 126,
+  "dn": 125, "down": 125, "down_arrow": 125,
+  "lt": 123, "left": 123, "left_arrow": 123,
+  "rt": 124, "right": 124, "right_arrow": 124,
+  "fn": 127, "function": 127,
+  "f1": 122, 
+  "f2": 120, 
+  "f3": 99, 
+  "f4": 118, 
+  "f5": 96, 
+  "f6": 97, 
+  "f7": 98, 
+  "f8": 100, 
+  "f9": 101, 
+  "f10": 109, 
+  "f11": 103, 
+  "f12": 111,
 ]
 
 func findAppProcess(bundleId: String) -> pid_t? {
@@ -59,9 +73,8 @@ func sendKeyToPid(_ keyCode: CGKeyCode, _ pid: pid_t, modifiers: [String] = []) 
   keyDown?.flags = flags
   keyUp?.flags = flags
   keyDown?.postToPid(pid)
-  usleep(1000)
   keyUp?.postToPid(pid)
-  usleep(1000)
+  usleep(5000)
 }
 
 func sendCharToPid(_ char: Character, _ pid: pid_t) {
@@ -98,10 +111,12 @@ guard let pid = findAppProcess(bundleId: bundleId) else {
 print("message: \(message)")
 let tokens = message.split(separator: " ").map(String.init)
 print("tokens: \(tokens)")
-for token in tokens {
+for i in 0..<tokens.count {
+  let token = tokens[i]
+
   print("token: \(token)")
   if token.hasPrefix("^^") {
-    let rest = token.dropFirst()
+    let rest = String(token.dropFirst())
     for c in rest {
       sendCharToPid(c, pid)
     }
@@ -135,6 +150,9 @@ for token in tokens {
   } else {
     for c in token {
       sendCharToPid(c, pid)
+    }
+    if i < tokens.count - 1 {
+      sendKeyToPid(49, pid)
     }
   }
 }
