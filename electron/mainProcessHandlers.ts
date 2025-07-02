@@ -179,5 +179,6 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         return;
       }
     }
+    await new Promise((resolve) => setTimeout(resolve, 500));
   });
 }
