@@ -57,6 +57,20 @@ let SPECIAL_KEYS: [String: CGKeyCode] = [
   "f12": 111,
 ]
 
+extension StringProtocol {
+    func ranges<S: StringProtocol>(of string: S, options: String.CompareOptions = []) -> [Range<Index>] {
+        var result: [Range<Index>] = []
+        var startIndex = self.startIndex
+        while startIndex < endIndex,
+            let range = self[startIndex...].range(of: string, options: options) {
+                result.append(range)
+                startIndex = range.lowerBound < range.upperBound ? range.upperBound :
+                    index(range.lowerBound, offsetBy: 1, limitedBy: endIndex) ?? endIndex
+        }
+        return result
+    }
+}
+
 func findAppProcess(bundleId: String) -> pid_t? {
   for app in NSWorkspace.shared.runningApplications {
     if app.bundleIdentifier == bundleId {
@@ -87,6 +101,7 @@ func sendStrToPid(_ string: String, _ pid: pid_t) {
   var unichars: Array<UniChar> = Array( string.utf16 )
   keyDown?.keyboardSetUnicodeString(stringLength: unichars.count, unicodeString: &unichars)
   keyDown?.postToPid(pid)
+  usleep(5000)
 }
 
 func sendCharToPid(_ char: Character, _ pid: pid_t) {
@@ -121,7 +136,9 @@ guard let pid = findAppProcess(bundleId: bundleId) else {
 }
 
 print("message: \(message)")
-let tokens = message.split(separator: " ").map(String.init)
+let pattern = try Regex("(?=\\^.*?(?: |$))")
+let tokens = message.split(separator: pattern).map(String.init)
+
 print("tokens: \(tokens)")
 for i in 0..<tokens.count {
   let token = tokens[i]
