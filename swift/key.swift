@@ -82,6 +82,13 @@ func sendKeyToPid(_ keyCode: CGKeyCode, _ pid: pid_t, modifiers: [String] = []) 
   usleep(5000)
 }
 
+func sendStrToPid(_ string: String, _ pid: pid_t) {
+  let keyDown = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)
+  var unichars: Array<UniChar> = Array( string.utf16 )
+  keyDown?.keyboardSetUnicodeString(stringLength: unichars.count, unicodeString: &unichars)
+  keyDown?.postToPid(pid)
+}
+
 func sendCharToPid(_ char: Character, _ pid: pid_t) {
   var mods: [String] = []
   var keyChar = char
@@ -153,11 +160,6 @@ for i in 0..<tokens.count {
       }
     }
   } else {
-    for c in token {
-      sendCharToPid(c, pid)
-    }
-    if i < tokens.count - 1 {
-      sendKeyToPid(49, pid)
-    }
+    sendStrToPid(token, pid)
   }
 }
