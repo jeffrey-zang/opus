@@ -1,6 +1,7 @@
 import ApplicationServices
 import Cocoa
 
+// This script is used to click elements on an app (background or foreground)
 // usage: click <bundleId> <elementId?>
 // elementId is optional. If not provided, the script will list all elements.
 

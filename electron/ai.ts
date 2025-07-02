@@ -31,6 +31,7 @@ down
 left
 right
 fn
+and all of the function number keys (f1-f12).
 
 To type two keys at once, use a plus sign between them (e.g., "key cmd+t enter"). Another example: to make a new tab on Chrome, you would use "key cmd+t".
 

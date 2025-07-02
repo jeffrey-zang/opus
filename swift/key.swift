@@ -1,5 +1,10 @@
 #!/usr/bin/swift
 
+// This script is used to send keypresses to an app (background or foreground)z
+// Usage: Usage: swift key.swift <AppBundleIdentifier> "Your message here"
+// For special keys and modifiers, prefix with ^ (caret). Ex. "hello ^enter" or "^cmd+t youtube.com ^enter"
+// To type a caret, escape it with a double caret ex. "^^"
+
 import Cocoa
 import CoreGraphics
 import Foundation
