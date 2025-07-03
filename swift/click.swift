@@ -10,7 +10,7 @@ let mappingFile = "/tmp/opus-ax-paths.json"
 func isClickableRole(_ role: String) -> Bool {
   let clickableRoles = [
     "AXButton",
-    "AXLink",
+    // "AXLink",
     "AXTextField",
     "AXTextArea",
     "AXCheckBox",
@@ -28,9 +28,11 @@ func isClickableRole(_ role: String) -> Bool {
 
 func elementToDictFlat(_ element: AXUIElement, path: [Int], flatList: inout [([Int], [String: Any])]) {
   let attrs = [
-    kAXRoleAttribute, kAXRoleDescriptionAttribute, kAXDescriptionAttribute,
-    kAXTitleAttribute, kAXSubroleAttribute, kAXHelpAttribute,
-    kAXValueAttribute, kAXURLAttribute,
+    kAXRoleAttribute,
+    kAXTitleAttribute, 
+    kAXHelpAttribute,
+    kAXValueAttribute, 
+    kAXURLAttribute,
   ]
   var dict: [String: Any] = [:]
   var isGroup = false
