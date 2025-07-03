@@ -7,33 +7,48 @@ import Cocoa
 
 let mappingFile = "/tmp/opus-ax-paths.json"
 
-func elementToDictFlat(_ element: AXUIElement, path: [Int], idCounter: inout Int, flatList: inout [[String: Any]], idToPath: inout [Int: [Int]]) {
+func isClickableRole(_ role: String) -> Bool {
+  let clickableRoles = [
+    "AXButton",
+    "AXLink",
+    "AXTextField",
+    "AXTextArea",
+    "AXCheckBox",
+    "AXRadioButton",
+    "AXPopUpButton",
+    "AXComboBox",
+    "AXTab",
+    "AXMenuItem",
+    "AXCell",
+    "AXSearchField",
+  ]
+
+  return clickableRoles.contains(role)
+}
+
+func elementToDictFlat(_ element: AXUIElement, path: [Int], flatList: inout [([Int], [String: Any])]) {
   let attrs = [
     kAXRoleAttribute, kAXRoleDescriptionAttribute, kAXDescriptionAttribute,
     kAXTitleAttribute, kAXSubroleAttribute, kAXHelpAttribute,
     kAXValueAttribute, kAXURLAttribute,
   ]
   var dict: [String: Any] = [:]
-  let id = idCounter
-  dict["id"] = id
-  idToPath[id] = path
-  idCounter += 1
   var isGroup = false
   for attr in attrs {
     var value: CFTypeRef?
     let err = AXUIElementCopyAttributeValue(element, attr as CFString, &value)
     let str = (err == .success && value != nil) ? String(describing: value!) : ""
     if attr == kAXRoleAttribute && str == "AXGroup" { isGroup = true }
-    if !str.isEmpty { dict[attr as String] = str }
+    dict[attr as String] = str
   }
   var children: CFTypeRef?
   if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children)
     == .success,
     let arr = children as? [AXUIElement], !arr.isEmpty
   {
-    for (i, c) in arr.enumerated() { elementToDictFlat(c, path: path + [i], idCounter: &idCounter, flatList: &flatList, idToPath: &idToPath) }
+    for (i, c) in arr.enumerated() { elementToDictFlat(c, path: path + [i], flatList: &flatList) }
   }
-  if !isGroup { flatList.append(dict) }
+  if !isGroup { flatList.append((path, dict)) }
 }
 
 func dumpAppUI(bundleId: String) {
@@ -53,11 +68,45 @@ func dumpAppUI(bundleId: String) {
     print("No windows")
     return
   }
-  var flatList: [[String: Any]] = []
+  var flatList: [([Int], [String: Any])] = []
+  for (wIdx, w) in windowList.enumerated() { elementToDictFlat(w, path: [wIdx], flatList: &flatList) }
+
+  var filteredFlatList: [([Int], [String: Any])] = []
+  var seen: [String: (path: [Int], dict: [String: Any])] = [:]
+  func signature(_ dict: [String: Any]) -> String {
+    let keys = [kAXRoleAttribute, kAXTitleAttribute, kAXDescriptionAttribute, kAXURLAttribute, kAXRoleDescriptionAttribute, kAXSubroleAttribute]
+    return keys.map { (dict[$0 as String] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }.joined(separator: "|")
+  }
+  func filledCount(_ dict: [String: Any]) -> Int {
+    dict.filter { (k, v) in k != "id" && k != kAXRoleAttribute as String && !(v as? String ?? "").isEmpty }.count
+  }
+  for (path, dict) in flatList {
+    if let role = dict[kAXRoleAttribute as String] as? String, isClickableRole(role) {
+      let sig = signature(dict)
+      if let existing = seen[sig] {
+        if filledCount(dict) > filledCount(existing.dict) {
+          seen[sig] = (path, dict)
+        }
+      } else {
+        seen[sig] = (path, dict)
+      }
+    }
+  }
+  for (_, v) in seen {
+    // Only keep if at least one field besides id/AXRole is non-empty
+    if v.dict.filter({ (k, val) in k != "id" && k != kAXRoleAttribute as String && !(val as? String ?? "").isEmpty }).count > 0 {
+      filteredFlatList.append((v.path, v.dict))
+    }
+  }
   var idToPath: [Int: [Int]] = [:]
-  var idCounter = 0
-  for (wIdx, w) in windowList.enumerated() { elementToDictFlat(w, path: [wIdx], idCounter: &idCounter, flatList: &flatList, idToPath: &idToPath) }
-  if let data = try? JSONSerialization.data(withJSONObject: flatList, options: .prettyPrinted) {
+  var flatListWithIds: [[String: Any]] = []
+  for (idx, (path, dict)) in filteredFlatList.enumerated() {
+    var dictWithId = dict
+    dictWithId["id"] = idx
+    flatListWithIds.append(dictWithId)
+    idToPath[idx] = path
+  }
+  if let data = try? JSONSerialization.data(withJSONObject: flatListWithIds, options: .prettyPrinted) {
     if let jsonString = String(data: data, encoding: .utf8) {
       print(jsonString)
     } else {
