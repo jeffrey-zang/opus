@@ -30,6 +30,7 @@ const App = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setMessages([]);
     inputRef.current?.blur();
     window.ipcRenderer.sendMessage(prompt);
     setShowPrompt(prompt);
@@ -74,7 +75,7 @@ const App = () => {
           messages.map((msg, i) => (
             <div
               key={i}
-              className={`mb-6 p-4 rounded-lg ${
+              className={`mb-4 p-4 rounded-lg ${
                 msg.type === "error"
                   ? "bg-red-950"
                   : msg.type === "complete"

@@ -447,7 +447,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         });
         return;
       }
-      if (action === "done") {
+      if (action === "done" || action === "(done)") {
         logWithElapsed("setupMainHandlers", "Task complete");
         event.sender.send("reply", {
           type: "complete",
