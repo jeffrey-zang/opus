@@ -156,13 +156,14 @@ async function takeAndSaveScreenshots(appName: string, stepFolder: string) {
 }
 
 interface Element {
+  id: number;
   AXRole?: string;
   AXTitle?: string;
   AXHelp?: string;
   AXValue?: string;
   AXURL?: string;
   AXDescription?: string;
-  id: number;
+  AXSubrole?: string;
 }
 
 async function runActionAgent(
@@ -174,11 +175,17 @@ async function runActionAgent(
   stepFolder?: string
 ) {
   logWithElapsed("runActionAgent", `Running action agent for app: ${appName}`);
-  let parsedClickableElements: string = "";
+  let parsedClickableElements = "";
   for (let i = 0; i < clickableElements.length; i++) {
     const element: Element = clickableElements[i];
+    let roleOrSubrole = "";
+    if (element.AXSubrole && element.AXSubrole !== "") {
+      roleOrSubrole = element.AXSubrole + " ";
+    } else if (element.AXRole && element.AXRole !== "") {
+      roleOrSubrole = element.AXRole + " ";
+    }
     parsedClickableElements +=
-      `${element.id} ${element.AXRole !== "" ? `${element.AXRole} ` : ""}${
+      `${element.id} ${roleOrSubrole}${
         element.AXTitle !== "" ? `${element.AXTitle} ` : ""
       }${element.AXValue !== "" ? `${element.AXValue} ` : ""}${
         element.AXHelp !== "" ? `${element.AXHelp} ` : ""

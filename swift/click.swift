@@ -7,6 +7,15 @@ import Cocoa
 
 let mappingFile = "/tmp/opus-ax-paths.json"
 
+let axAttributes = [
+  kAXRoleAttribute,
+  kAXTitleAttribute, 
+  kAXHelpAttribute,
+  kAXValueAttribute, 
+  kAXDescriptionAttribute,
+  kAXSubroleAttribute,
+]
+
 func isClickableRole(_ role: String) -> Bool {
   let clickableRoles = [
     "AXButton",
@@ -27,13 +36,7 @@ func isClickableRole(_ role: String) -> Bool {
 }
 
 func elementToDictFlat(_ element: AXUIElement, path: [Int], flatList: inout [([Int], [String: Any])]) {
-  let attrs = [
-    kAXRoleAttribute,
-    kAXTitleAttribute, 
-    kAXHelpAttribute,
-    kAXValueAttribute, 
-    kAXURLAttribute,
-  ]
+  let attrs = axAttributes
   var dict: [String: Any] = [:]
   var isGroup = false
   var roleStr = ""
@@ -91,8 +94,7 @@ func dumpAppUI(bundleId: String) {
   var filteredFlatList: [([Int], [String: Any])] = []
   var seen: [String: (path: [Int], dict: [String: Any])] = [:]
   func signature(_ dict: [String: Any]) -> String {
-    let keys = [kAXRoleAttribute, kAXTitleAttribute, kAXDescriptionAttribute, kAXURLAttribute, kAXRoleDescriptionAttribute, kAXSubroleAttribute]
-    return keys.map { (dict[$0 as String] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }.joined(separator: "|")
+    return axAttributes.map { (dict[$0 as String] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }.joined(separator: "|")
   }
   func filledCount(_ dict: [String: Any]) -> Int {
     dict.filter { (k, v) in k != "id" && k != kAXRoleAttribute as String && !(v as? String ?? "").isEmpty }.count
