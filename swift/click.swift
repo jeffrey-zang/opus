@@ -10,7 +10,6 @@ let mappingFile = "/tmp/opus-ax-paths.json"
 func isClickableRole(_ role: String) -> Bool {
   let clickableRoles = [
     "AXButton",
-    // "AXLink",
     "AXTextField",
     "AXTextArea",
     "AXCheckBox",
@@ -21,8 +20,9 @@ func isClickableRole(_ role: String) -> Bool {
     "AXMenuItem",
     "AXCell",
     "AXSearchField",
+    // "AXLink",
+    // "AXStaticText",
   ]
-
   return clickableRoles.contains(role)
 }
 
@@ -36,11 +36,15 @@ func elementToDictFlat(_ element: AXUIElement, path: [Int], flatList: inout [([I
   ]
   var dict: [String: Any] = [:]
   var isGroup = false
+  var roleStr = ""
   for attr in attrs {
     var value: CFTypeRef?
     let err = AXUIElementCopyAttributeValue(element, attr as CFString, &value)
     let str = (err == .success && value != nil) ? String(describing: value!) : ""
-    if attr == kAXRoleAttribute && str == "AXGroup" { isGroup = true }
+    if attr == kAXRoleAttribute {
+      roleStr = str
+      if str == "AXGroup" { isGroup = true }
+    }
     dict[attr as String] = str
   }
   var children: CFTypeRef?
@@ -50,7 +54,18 @@ func elementToDictFlat(_ element: AXUIElement, path: [Int], flatList: inout [([I
   {
     for (i, c) in arr.enumerated() { elementToDictFlat(c, path: path + [i], flatList: &flatList) }
   }
-  if !isGroup { flatList.append((path, dict)) }
+  var shouldAdd = false
+  if isClickableRole(roleStr) {
+    shouldAdd = true
+  } else if roleStr == "AXStaticText" {
+    var actionsRef: CFArray?
+    if AXUIElementCopyActionNames(element, &actionsRef) == .success, let actions = actionsRef as? [String] {
+      if actions.contains("AXPress") {
+        shouldAdd = true
+      }
+    }
+  }
+  if !isGroup && shouldAdd { flatList.append((path, dict)) }
 }
 
 func dumpAppUI(bundleId: String) {
@@ -95,7 +110,6 @@ func dumpAppUI(bundleId: String) {
     }
   }
   for (_, v) in seen {
-    // Only keep if at least one field besides id/AXRole is non-empty
     if v.dict.filter({ (k, val) in k != "id" && k != kAXRoleAttribute as String && !(val as? String ?? "").isEmpty }).count > 0 {
       filteredFlatList.append((v.path, v.dict))
     }
