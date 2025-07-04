@@ -37,7 +37,9 @@ To type two keys at once, use a plus sign between them (e.g., "key cmd+t enter")
 
 Never perform any actions that result in the app being brought to the front of the screen (ie. command tab, command space, full screening, etc.) unless it is explicitly stated by the command. These things will be ran in the background so do not interrupt that sanctuary. Never perform an action that will result in the switching of an app, assume that all actions only need to take place on this one app to work.
 
-After each action, you will be asked again if the task is complete. If so, reply with "done". Otherwise, return the next action. Always use the minimal number of steps. Use key presses for typing or shortcuts, and click only when necessary. Always consider the history to avoid repeating actions. Do not explain your reasoning. Only output the command.
+After each action, please review the screenshot and the previous actions taken to figure out if the task has been performed successfully. If an action didn't work properly, please retry it or find a workaround for it.
+
+After each action, you will be asked again if the task is complete. If so, reply with "done". You must ensure that a task is complete before saying that it is done. Otherwise, return the next action. Always use the minimal number of steps. Use key presses for typing or shortcuts, and click only when necessary. Always consider the history to avoid repeating actions. Do not explain your reasoning. Only output the command.
 
 Examples:
 - click 12

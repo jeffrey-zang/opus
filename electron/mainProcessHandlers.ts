@@ -161,6 +161,7 @@ interface Element {
   AXHelp?: string;
   AXValue?: string;
   AXURL?: string;
+  AXDescription?: string;
   id: number;
 }
 
@@ -168,7 +169,7 @@ async function runActionAgent(
   appName: string,
   userPrompt: string,
   clickableElements: Element[],
-  history: { action: string }[],
+  history: { action: string; element?: Element }[],
   screenshotBase64?: string,
   stepFolder?: string
 ) {
@@ -181,14 +182,34 @@ async function runActionAgent(
         element.AXTitle !== "" ? `${element.AXTitle} ` : ""
       }${element.AXValue !== "" ? `${element.AXValue} ` : ""}${
         element.AXHelp !== "" ? `${element.AXHelp} ` : ""
-      }${element.AXURL !== "" ? `${element.AXURL} ` : ""}` + "\n";
+      }${element.AXDescription !== "" ? `${element.AXDescription} ` : ""}` +
+      "\n";
+  }
+
+  let parsedHistory = "";
+  for (const h of history) {
+    if (h.action.startsWith("click ") && h.element) {
+      const e = h.element;
+      parsedHistory +=
+        `click ${e.id} ${e.AXRole !== "" ? `${e.AXRole} ` : ""}${
+          e.AXTitle !== "" ? `${e.AXTitle} ` : ""
+        }${e.AXValue !== "" ? `${e.AXValue} ` : ""}${
+          e.AXHelp !== "" ? `${e.AXHelp} ` : ""
+        }${e.AXDescription !== "" ? `${e.AXDescription} ` : ""}`.trim() + "\n";
+    } else if (h.action.startsWith("key ")) {
+      parsedHistory += h.action + "\n";
+    }
   }
 
   const contentText =
-    `You are operating on the app: ${appName}.\n` +
-    `User prompt: ${userPrompt}\n` +
-    `Here is a list of clickable elements: ${parsedClickableElements}\n` +
-    `Action history so far (JSON): ${JSON.stringify(history)}`;
+    `You are operating on the app: ${appName}.\n\n` +
+    `User prompt (the task you must complete): ${userPrompt}\n\n` +
+    `Here is a list of clickable elements:\n${parsedClickableElements}\n\n` +
+    `Action history so far:\n${
+      parsedHistory
+        ? parsedHistory
+        : "No actions have been completed yet (this is the first action)."
+    }`;
 
   if (stepFolder) {
     fs.writeFileSync(path.join(stepFolder, "agent-prompt.txt"), contentText);
@@ -242,9 +263,9 @@ async function performAction(
   logWithElapsed("performAction", `Performing action: ${action}`);
   if (action.startsWith("click ")) {
     const id = action.split(" ")[1];
-    const element = clickableElements.find((el) => {
+    const element = (clickableElements as Element[]).find((el) => {
       if (typeof el === "object" && el !== null) {
-        const rec = el as Record<string, unknown>;
+        const rec = el as unknown as Record<string, unknown>;
         return String(rec.id) === id || String(rec.elementId) === id;
       }
       return false;
@@ -285,7 +306,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
 
   ipcMain.on("message", async (event, userPrompt) => {
     logWithElapsed("setupMainHandlers", "message event received");
-    const history: { action: string }[] = [];
+    const history: { action: string; element?: Element }[] = [];
     let appName;
     try {
       appName = await getAppName(userPrompt);
@@ -322,8 +343,9 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
       return;
     }
     const mainLogFolder = createLogFolder(userPrompt);
-    let done = false;
+    console.log("\n");
 
+    let done = false;
     while (!done) {
       const stepTimestamp = Date.now().toString();
       const stepFolder = path.join(mainLogFolder, `${stepTimestamp}`);
@@ -395,7 +417,15 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         clickableElements
       );
       if (actionResult.type === "click") {
-        history.push({ action });
+        const id = action.split(" ")[1];
+        const element = (clickableElements as Element[]).find((el) => {
+          if (typeof el === "object" && el !== null) {
+            const rec = el as unknown as Record<string, unknown>;
+            return String(rec.id) === id || String(rec.elementId) === id;
+          }
+          return false;
+        });
+        history.push({ action, element });
         logWithElapsed("setupMainHandlers", `Clicked id: ${actionResult.id}`);
       } else if (actionResult.type === "key") {
         history.push({ action });
@@ -411,6 +441,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         });
         return;
       }
+      console.log("\n");
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   });
