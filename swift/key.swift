@@ -157,7 +157,9 @@ for i in 0..<tokens.count {
       sendCharToPid(c, pid)
     }
     if i < tokens.count - 1 {
-      sendKeyToPid(49, pid)
+      if let spaceKeyCode = KEY_CODES[" "] {
+        sendKeyToPid(spaceKeyCode, pid)
+      }
     }
   }
 }
