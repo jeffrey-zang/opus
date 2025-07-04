@@ -265,7 +265,8 @@ async function runActionAgent(
 async function performAction(
   action: string,
   bundleId: string,
-  clickableElements: unknown[]
+  clickableElements: unknown[],
+  event: Electron.IpcMainEvent
 ) {
   logWithElapsed("performAction", `Performing action: ${action}`);
   if (action.startsWith("click ")) {
@@ -285,11 +286,49 @@ async function performAction(
     }
     await execPromise(`swift swift/click.swift ${bundleId} ${id}`);
     logWithElapsed("performAction", `Executed click for id: ${id}`);
-    return { type: "click", id };
+    event.sender.send("reply", {
+      type: "action",
+      message:
+        `Clicked element with id ${id}` +
+        (element
+          ? `${
+              element.AXRole !== "" && element.AXRole
+                ? ` (${element.AXRole})`
+                : ""
+            }` +
+            `${
+              element.AXTitle !== "" && element.AXTitle
+                ? ` (title: ${element.AXTitle})`
+                : ""
+            }` +
+            `${
+              element.AXValue !== "" && element.AXValue
+                ? ` (value: ${element.AXValue})`
+                : ""
+            }` +
+            `${
+              element.AXHelp !== "" && element.AXHelp
+                ? ` (help: ${element.AXHelp})`
+                : ""
+            }` +
+            `${
+              element.AXDescription !== "" && element.AXDescription
+                ? ` (desc: ${element.AXDescription})`
+                : ""
+            }`
+          : ""),
+      id,
+      element: element || null,
+    });
+    return { type: "click", id, element: element || null };
   } else if (action.startsWith("key ")) {
     const keyString = action.slice(4);
     await execPromise(`swift swift/key.swift ${bundleId} "${keyString}"`);
     logWithElapsed("performAction", `Executed key: ${keyString}`);
+    event.sender.send("reply", {
+      type: "action",
+      message: `Sent key: ${keyString}`,
+    });
     return { type: "key", keyString };
   } else {
     logWithElapsed("performAction", `Unknown action: ${action}`);
@@ -421,7 +460,8 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
       const actionResult = await performAction(
         action,
         bundleId,
-        clickableElements
+        clickableElements,
+        event
       );
       if (actionResult.type === "click") {
         const id = action.split(" ")[1];
