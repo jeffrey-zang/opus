@@ -1,0 +1,28 @@
+[
+  {
+    "AXRoleDescription" : "close button",
+    "id" : 5,
+    "AXSubrole" : "AXCloseButton",
+    "AXRole" : "AXButton"
+  },
+  {
+    "AXSubrole" : "AXFullScreenButton",
+    "AXHelp" : "this button also has an action to zoom the window",
+    "id" : 6,
+    "AXRole" : "AXButton",
+    "AXRoleDescription" : "full screen button"
+  },
+  {
+    "id" : 9,
+    "AXRoleDescription" : "minimize button",
+    "AXSubrole" : "AXMinimizeButton",
+    "AXRole" : "AXButton"
+  },
+  {
+    "id" : 0,
+    "AXSubrole" : "AXStandardWindow",
+    "AXRole" : "AXWindow",
+    "AXRoleDescription" : "standard window",
+    "AXTitle" : "#class-profile | UW SE '30 - Discord"
+  }
+]

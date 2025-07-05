@@ -9,6 +9,7 @@ import Cocoa
 import CoreGraphics
 import Foundation
 
+let mappingFile = "/tmp/opus-ax-paths.json"
 let KEY_CODES: [Character: CGKeyCode] = [
   "a": 0, "b": 11, "c": 8, "d": 2, "e": 14, "f": 3, "g": 5, "h": 4, "i": 34,
   "j": 38, "k": 40, "l": 37, "m": 46, "n": 45, "o": 31, "p": 35, "q": 12,
@@ -43,17 +44,17 @@ let SPECIAL_KEYS: [String: CGKeyCode] = [
   "lt": 123, "left": 123, "left_arrow": 123,
   "rt": 124, "right": 124, "right_arrow": 124,
   "fn": 127, "function": 127,
-  "f1": 122, 
-  "f2": 120, 
-  "f3": 99, 
-  "f4": 118, 
-  "f5": 96, 
-  "f6": 97, 
-  "f7": 98, 
-  "f8": 100, 
-  "f9": 101, 
-  "f10": 109, 
-  "f11": 103, 
+  "f1": 122,
+  "f2": 120,
+  "f3": 99,
+  "f4": 118,
+  "f5": 96,
+  "f6": 97,
+  "f7": 98,
+  "f8": 100,
+  "f9": 101,
+  "f10": 109,
+  "f11": 103,
   "f12": 111,
 ]
 
@@ -94,6 +95,58 @@ func sendCharToPid(_ char: Character, _ pid: pid_t) {
   }
   if let keyCode = KEY_CODES[keyChar] {
     sendKeyToPid(keyCode, pid, modifiers: mods)
+  }
+}
+
+func elementAtPath(root: AXUIElement, path: [Int]) -> AXUIElement? {
+  var el = root
+  for idx in path {
+    var children: CFTypeRef?
+    if AXUIElementCopyAttributeValue(el, kAXChildrenAttribute as CFString, &children) != .success {
+      return nil
+    }
+    guard let arr = children as? [AXUIElement], idx < arr.count else { return nil }
+    el = arr[idx]
+  }
+  return el
+}
+
+func typeElementById(bundleId: String, idStr: String, string: String) {
+  guard AXIsProcessTrusted() else {
+    print("Enable Accessibility permissions for this app.")
+    return
+  }
+  guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first
+  else {
+    print("App not running: \(bundleId)")
+    return
+  }
+  guard let id = Int(idStr) else {
+    print("Invalid id")
+    return
+  }
+  guard let mapData = try? Data(contentsOf: URL(fileURLWithPath: mappingFile)),
+    let mapObj = try? JSONSerialization.jsonObject(with: mapData) as? [String: String],
+    let pathStr = mapObj["\(id)"]
+  else {
+    print("Mapping file or id not found")
+    return
+  }
+  let comps = pathStr.split(separator: ".").compactMap { Int($0) }
+  let appElement = AXUIElementCreateApplication(app.processIdentifier)
+  var windows: CFTypeRef?
+  AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windows)
+  guard let windowList = windows as? [AXUIElement], let wIdx = comps.first, wIdx < windowList.count
+  else {
+    print("Invalid window index")
+    return
+  }
+  let el = elementAtPath(root: windowList[wIdx], path: Array(comps.dropFirst()))
+  if let el = el {
+    AXUIElementSetAttributeValue(el, "AXValue" as CFString, string as CFTypeRef)
+    print("typed in element id \(id)")
+  } else {
+    print("Element not found for id \(id)")
   }
 }
 
@@ -153,14 +206,15 @@ for i in 0..<tokens.count {
       }
     }
   } else {
-    for c in token {
-      sendCharToPid(c, pid)
-    }
-    if i < tokens.count - 1 {
-      if let spaceKeyCode = KEY_CODES[" "] {
-        sendKeyToPid(spaceKeyCode, pid)
-      }
-    }
+    // for c in token {
+    //   sendCharToPid(c, pid)
+    // }
+    // if i < tokens.count - 1 {
+    //   if let spaceKeyCode = KEY_CODES[" "] {
+    //     sendKeyToPid(spaceKeyCode, pid)
+    //   }
+    // }
+    typeElementById(bundleId: bundleId, idStr: "11", string: token)
   }
 }
-  
+

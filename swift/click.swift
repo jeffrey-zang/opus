@@ -9,9 +9,9 @@ let mappingFile = "/tmp/opus-ax-paths.json"
 
 let axAttributes = [
   kAXRoleAttribute,
-  kAXTitleAttribute, 
+  kAXTitleAttribute,
   kAXHelpAttribute,
-  kAXValueAttribute, 
+  kAXValueAttribute,
   kAXDescriptionAttribute,
   kAXSubroleAttribute,
 ]
@@ -35,7 +35,9 @@ func isClickableRole(_ role: String) -> Bool {
   return clickableRoles.contains(role)
 }
 
-func elementToDictFlat(_ element: AXUIElement, path: [Int], flatList: inout [([Int], [String: Any])]) {
+func elementToDictFlat(
+  _ element: AXUIElement, path: [Int], flatList: inout [([Int], [String: Any])]
+) {
   let attrs = axAttributes
   var dict: [String: Any] = [:]
   var isGroup = false
@@ -50,11 +52,13 @@ func elementToDictFlat(_ element: AXUIElement, path: [Int], flatList: inout [([I
     }
     dict[attr as String] = str
   }
+  print(dict)
   var children: CFTypeRef?
   if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children)
     == .success,
     let arr = children as? [AXUIElement], !arr.isEmpty
   {
+    print("children \(arr)")
     for (i, c) in arr.enumerated() { elementToDictFlat(c, path: path + [i], flatList: &flatList) }
   }
   var shouldAdd = false
@@ -62,7 +66,9 @@ func elementToDictFlat(_ element: AXUIElement, path: [Int], flatList: inout [([I
     shouldAdd = true
   } else if roleStr == "AXStaticText" {
     var actionsRef: CFArray?
-    if AXUIElementCopyActionNames(element, &actionsRef) == .success, let actions = actionsRef as? [String] {
+    if AXUIElementCopyActionNames(element, &actionsRef) == .success,
+      let actions = actionsRef as? [String]
+    {
       if actions.contains("AXPress") {
         shouldAdd = true
       }
@@ -89,15 +95,21 @@ func dumpAppUI(bundleId: String) {
     return
   }
   var flatList: [([Int], [String: Any])] = []
-  for (wIdx, w) in windowList.enumerated() { elementToDictFlat(w, path: [wIdx], flatList: &flatList) }
+  for (wIdx, w) in windowList.enumerated() {
+    elementToDictFlat(w, path: [wIdx], flatList: &flatList)
+  }
 
   var filteredFlatList: [([Int], [String: Any])] = []
   var seen: [String: (path: [Int], dict: [String: Any])] = [:]
   func signature(_ dict: [String: Any]) -> String {
-    return axAttributes.map { (dict[$0 as String] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }.joined(separator: "|")
+    return axAttributes.map {
+      (dict[$0 as String] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    }.joined(separator: "|")
   }
   func filledCount(_ dict: [String: Any]) -> Int {
-    dict.filter { (k, v) in k != "id" && k != kAXRoleAttribute as String && !(v as? String ?? "").isEmpty }.count
+    dict.filter { (k, v) in
+      k != "id" && k != kAXRoleAttribute as String && !(v as? String ?? "").isEmpty
+    }.count
   }
   for (path, dict) in flatList {
     if let role = dict[kAXRoleAttribute as String] as? String, isClickableRole(role) {
@@ -112,7 +124,9 @@ func dumpAppUI(bundleId: String) {
     }
   }
   for (_, v) in seen {
-    if v.dict.filter({ (k, val) in k != "id" && k != kAXRoleAttribute as String && !(val as? String ?? "").isEmpty }).count > 0 {
+    if v.dict.filter({ (k, val) in
+      k != "id" && k != kAXRoleAttribute as String && !(val as? String ?? "").isEmpty
+    }).count > 0 {
       filteredFlatList.append((v.path, v.dict))
     }
   }
@@ -124,7 +138,9 @@ func dumpAppUI(bundleId: String) {
     flatListWithIds.append(dictWithId)
     idToPath[idx] = path
   }
-  if let data = try? JSONSerialization.data(withJSONObject: flatListWithIds, options: .prettyPrinted) {
+  if let data = try? JSONSerialization.data(
+    withJSONObject: flatListWithIds, options: .prettyPrinted)
+  {
     if let jsonString = String(data: data, encoding: .utf8) {
       print(jsonString)
     } else {
@@ -133,7 +149,10 @@ func dumpAppUI(bundleId: String) {
   } else {
     print("Failed to serialize JSON")
   }
-  let idToPathStr = Dictionary(uniqueKeysWithValues: idToPath.map { (String($0.key), $0.value.map(String.init).joined(separator: ".")) })
+  let idToPathStr = Dictionary(
+    uniqueKeysWithValues: idToPath.map {
+      (String($0.key), $0.value.map(String.init).joined(separator: "."))
+    })
   if let mapData = try? JSONSerialization.data(withJSONObject: idToPathStr, options: []) {
     try? mapData.write(to: URL(fileURLWithPath: mappingFile))
   }
@@ -157,7 +176,8 @@ func clickElementById(bundleId: String, idStr: String) {
     print("Enable Accessibility permissions for this app.")
     return
   }
-  guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first else {
+  guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first
+  else {
     print("App not running: \(bundleId)")
     return
   }
@@ -166,8 +186,9 @@ func clickElementById(bundleId: String, idStr: String) {
     return
   }
   guard let mapData = try? Data(contentsOf: URL(fileURLWithPath: mappingFile)),
-        let mapObj = try? JSONSerialization.jsonObject(with: mapData) as? [String: String],
-        let pathStr = mapObj["\(id)"] else {
+    let mapObj = try? JSONSerialization.jsonObject(with: mapData) as? [String: String],
+    let pathStr = mapObj["\(id)"]
+  else {
     print("Mapping file or id not found")
     return
   }
@@ -175,7 +196,8 @@ func clickElementById(bundleId: String, idStr: String) {
   let appElement = AXUIElementCreateApplication(app.processIdentifier)
   var windows: CFTypeRef?
   AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windows)
-  guard let windowList = windows as? [AXUIElement], let wIdx = comps.first, wIdx < windowList.count else {
+  guard let windowList = windows as? [AXUIElement], let wIdx = comps.first, wIdx < windowList.count
+  else {
     print("Invalid window index")
     return
   }
