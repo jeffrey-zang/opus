@@ -24,15 +24,18 @@ function createWindow() {
     width: 500,
     height: 500,
     resizable: false,
-    trafficLightPosition: { x: -100, y: -100 },
     alwaysOnTop: false,
     ...(process.platform === "darwin"
       ? {
+          trafficLightPosition: { x: -100, y: -100 },
           autoHideMenuBar: true,
           titleBarStyle: "hiddenInset",
           frame: false,
         }
-      : {}),
+      : {
+          autoHideMenuBar: true,
+          frame: true,
+        }),
     webPreferences: {
       contextIsolation: true,
       preload: path.join(__dirname, "preload.mjs"),
@@ -76,6 +79,7 @@ app.whenReady().then(() => {
   new Notification({
     title: "Hello from Opus",
     body: "Opus is ready! Type a prompt and run your first task.",
+    icon: process.platform === "win32" ? path.join(process.env.VITE_PUBLIC, "click.png") : undefined,
   }).show();
   createWindow();
 });
