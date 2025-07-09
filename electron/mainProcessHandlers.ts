@@ -6,7 +6,7 @@ import {
   Notification,
 } from "electron";
 import { run } from "@openai/agents";
-import { appSelectionAgent, actionAgent } from "./ai";
+import { getAppSelectionAgent, getActionAgent } from "./ai";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import * as fs from "node:fs";
@@ -33,6 +33,7 @@ async function getAppName(userPrompt: string) {
     "getAppName",
     `Start getAppName with userPrompt: ${userPrompt}`
   );
+  const appSelectionAgent = getAppSelectionAgent();
   const appNameResult = await run(appSelectionAgent, [
     { role: "user", content: userPrompt },
   ]);
@@ -275,6 +276,7 @@ async function runActionAgent(
     },
   ];
 
+  const actionAgent = getActionAgent();
   const actionResult = await run(actionAgent, agentInput);
   logWithElapsed(
     "runActionAgent",
@@ -379,7 +381,7 @@ async function performAction(
 }
 
 export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
-  ipcMain.on("resize", async (event, w, h) => {
+  ipcMain.on("resize", async (_event, w, h) => {
     logWithElapsed("setupMainHandlers", "resize event received");
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width } = primaryDisplay.workAreaSize;
