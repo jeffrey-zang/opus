@@ -60,13 +60,13 @@ func elementToDictFlat(
   //   print("\(property.label!) = \(property.value)")
   // }
   // dump(element)
-  print(dict)
+  // print(dict)
   var children: CFTypeRef?
   if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children)
     == .success,
     let arr = children as? [AXUIElement], !arr.isEmpty
   {
-    print("children \(arr)")
+    // print("children \(arr)")
     for (i, c) in arr.enumerated() { elementToDictFlat(c, path: path + [i], flatList: &flatList) }
   }
   var shouldAdd = false
@@ -97,9 +97,9 @@ func dumpAppUI(bundleId: String) {
   }
   let appElement = AXUIElementCreateApplication(app.processIdentifier)
 
-  let result = AXUIElementSetAttributeValue(
-    appElement, "AXManualAccessibility" as CFString, kCFBooleanTrue)
-  print("Setting 'AXManualAccessibility' \(result == .success ? "succeeded" : "failed")")
+  // let result = AXUIElementSetAttributeValue(
+  //   appElement, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+  // print("Setting 'AXManualAccessibility' \(result == .success ? "succeeded" : "failed")")
 
   var windows: CFTypeRef?
   AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windows)
@@ -110,20 +110,20 @@ func dumpAppUI(bundleId: String) {
 
   var flatList: [([Int], [String: Any])] = []
   for (wIdx, w) in windowList.enumerated() {
-    var sizeValue: CFTypeRef?
-    if AXUIElementCopyAttributeValue(w, kAXSizeAttribute as CFString, &sizeValue) == .success,
-      let size = sizeValue as? CGSize
-    {
-
-      let nudgedSize = CGSize(width: size.width + 1, height: size.height)
-      AXUIElementSetAttributeValue(w, kAXSizeAttribute as CFString, nudgedSize as CFTypeRef)
-
-      // Optionally revert size after a short delay
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-        _ = AXUIElementSetAttributeValue(w, kAXSizeAttribute as CFString, size as CFTypeRef)
-      }
-    }
-
+    // var sizeValue: CFTypeRef?
+    // if AXUIElementCopyAttributeValue(w, kAXSizeAttribute as CFString, &sizeValue) == .success,
+    //   let size = sizeValue as? CGSize
+    // {
+    //
+    //   let nudgedSize = CGSize(width: size.width + 1, height: size.height)
+    //   AXUIElementSetAttributeValue(w, kAXSizeAttribute as CFString, nudgedSize as CFTypeRef)
+    //
+    //   // Optionally revert size after a short delay
+    //   DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+    //     _ = AXUIElementSetAttributeValue(w, kAXSizeAttribute as CFString, size as CFTypeRef)
+    //   }
+    // }
+    //
     elementToDictFlat(w, path: [wIdx], flatList: &flatList)
   }
 
@@ -242,8 +242,8 @@ let bundleId = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : nil
 let idStr = CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : nil
 
 if let b = bundleId, idStr == nil {
-  print("trusted status")
-  print(AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary))
+  // print("trusted status")
+  // print(AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary))
   dumpAppUI(bundleId: b)
 } else if let b = bundleId, let i = idStr {
   clickElementById(bundleId: b, idStr: i)

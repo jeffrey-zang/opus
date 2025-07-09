@@ -98,6 +98,47 @@ async function getClickableElements(bundleId: string, stepFolder: string) {
     );
     throw new Error(clickableElements);
   }
+
+  if (clickableElements.length < 5) {
+    console.log("Could not get elements. Enabling accessibility");
+    await execPromise(`swift swift/manualAccessibility.swift ${bundleId}`);
+    const { stdout: windowStdout } = await execPromise(
+      `swift swift/windows.swift ${bundleId}`,
+    );
+    const windows = JSON.parse(windowStdout);
+    const window = windows[0];
+    // TODO: multi window support
+    // for (const window of windows) {
+    const { stdout: coordsStdout } = await execPromise(
+      `swift swift/moveToOpusDisplay.swift ${window.pid} "${window.name}"`,
+    );
+    console.log("moved window");
+    // fetch elements again
+    const { stdout } = await execPromise(`swift swift/click.swift ${bundleId}`);
+    try {
+      clickableElements = JSON.parse(stdout);
+      logWithElapsed("getClickableElements", `Parsed clickable elements`);
+    } catch (err) {
+      logWithElapsed("getClickableElements", `JSON parse error: ${stdout}`);
+      throw new Error(stdout);
+    }
+    if (
+      typeof clickableElements === "string" &&
+      clickableElements.match(/App not running|Error|not found|failed/i)
+    ) {
+      logWithElapsed(
+        "getClickableElements",
+        `Error in clickable elements: ${clickableElements}`,
+      );
+      throw new Error(clickableElements);
+    }
+    await execPromise(
+      `swift swift/moveToCoords.swift ${window.pid} "${window.name}" ${coordsStdout}`,
+    );
+    console.log("moved back");
+    // }
+  }
+
   fs.writeFileSync(
     path.join(stepFolder, "clickableElements.json"),
     JSON.stringify(clickableElements, null, 2),
@@ -402,6 +443,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
       try {
         const result = await getClickableElements(bundleId, stepFolder);
         clickableElements = result.clickableElements;
+        console.log(clickableElements);
         logWithElapsed("setupMainHandlers", "Got clickable elements");
       } catch (err) {
         logWithElapsed(
