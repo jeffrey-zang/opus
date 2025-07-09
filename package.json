@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "source .env && vite --host",
     "build": "source .env && tsc && vite build && electron-builder",
+    "build-display": "cd swift/virtualdisplay && rm -rf DerivedData && xcodebuild -scheme virtualdisplay build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
