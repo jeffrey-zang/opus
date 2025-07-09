@@ -206,15 +206,14 @@ for i in 0..<tokens.count {
       }
     }
   } else {
-    // for c in token {
-    //   sendCharToPid(c, pid)
-    // }
-    // if i < tokens.count - 1 {
-    //   if let spaceKeyCode = KEY_CODES[" "] {
-    //     sendKeyToPid(spaceKeyCode, pid)
-    //   }
-    // }
-    typeElementById(bundleId: bundleId, idStr: "11", string: token)
+    for c in token {
+      sendCharToPid(c, pid)
+    }
+    if i < tokens.count - 1 {
+      if let spaceKeyCode = KEY_CODES[" "] {
+        sendKeyToPid(spaceKeyCode, pid)
+      }
+    }
+    // typeElementById(bundleId: bundleId, idStr: "11", string: token)
   }
 }
-
