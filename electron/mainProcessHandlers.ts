@@ -31,7 +31,7 @@ function logWithElapsed(functionName: string, message: string) {
 async function getAppName(userPrompt: string) {
   logWithElapsed(
     "getAppName",
-    `Start getAppName with userPrompt: ${userPrompt}`
+    `Start getAppName with userPrompt: ${userPrompt}`,
   );
   const appNameResult = await run(appSelectionAgent, [
     { role: "user", content: userPrompt },
@@ -43,7 +43,7 @@ async function getAppName(userPrompt: string) {
       "output" in appNameResult.state._currentStep
         ? appNameResult.state._currentStep.output.trim()
         : undefined
-    }`
+    }`,
   );
   return appNameResult.state._currentStep &&
     "output" in appNameResult.state._currentStep
@@ -61,7 +61,7 @@ async function getBundleId(appName: string) {
 function createLogFolder(userPrompt: string) {
   logWithElapsed(
     "createLogFolder",
-    `Creating log folder for prompt: ${userPrompt}`
+    `Creating log folder for prompt: ${userPrompt}`,
   );
   const mainTimestamp = Date.now().toString();
   const promptFolderName = userPrompt
@@ -71,7 +71,7 @@ function createLogFolder(userPrompt: string) {
   const mainLogFolder = path.join(
     process.cwd(),
     "logs",
-    `${mainTimestamp}-${promptFolderName}`
+    `${mainTimestamp}-${promptFolderName}`,
   );
   if (!fs.existsSync(mainLogFolder)) {
     fs.mkdirSync(mainLogFolder, { recursive: true });
@@ -83,7 +83,7 @@ function createLogFolder(userPrompt: string) {
 async function getClickableElements(bundleId: string, stepFolder: string) {
   logWithElapsed(
     "getClickableElements",
-    `Getting clickable elements for bundleId: ${bundleId}`
+    `Getting clickable elements for bundleId: ${bundleId}`,
   );
   const { stdout } = await execPromise(`swift swift/click.swift ${bundleId}`);
   let clickableElements;
@@ -100,13 +100,54 @@ async function getClickableElements(bundleId: string, stepFolder: string) {
   ) {
     logWithElapsed(
       "getClickableElements",
-      `Error in clickable elements: ${clickableElements}`
+      `Error in clickable elements: ${clickableElements}`,
     );
     throw new Error(clickableElements);
   }
+
+  if (clickableElements.length < 5) {
+    console.log("Could not get elements. Enabling accessibility");
+    await execPromise(`swift swift/manualAccessibility.swift ${bundleId}`);
+    const { stdout: windowStdout } = await execPromise(
+      `swift swift/windows.swift ${bundleId}`,
+    );
+    const windows = JSON.parse(windowStdout);
+    const window = windows[0];
+    // TODO: multi window support
+    // for (const window of windows) {
+    const { stdout: coordsStdout } = await execPromise(
+      `swift swift/moveToOpusDisplay.swift ${window.pid} "${window.name}"`,
+    );
+    console.log("moved window");
+    // fetch elements again
+    const { stdout } = await execPromise(`swift swift/click.swift ${bundleId}`);
+    try {
+      clickableElements = JSON.parse(stdout);
+      logWithElapsed("getClickableElements", `Parsed clickable elements`);
+    } catch (err) {
+      logWithElapsed("getClickableElements", `JSON parse error: ${stdout}`);
+      throw new Error(stdout);
+    }
+    if (
+      typeof clickableElements === "string" &&
+      clickableElements.match(/App not running|Error|not found|failed/i)
+    ) {
+      logWithElapsed(
+        "getClickableElements",
+        `Error in clickable elements: ${clickableElements}`,
+      );
+      throw new Error(clickableElements);
+    }
+    await execPromise(
+      `swift swift/moveToCoords.swift ${window.pid} "${window.name}" ${coordsStdout}`,
+    );
+    console.log("moved back");
+    // }
+  }
+
   fs.writeFileSync(
     path.join(stepFolder, "clickableElements.json"),
-    JSON.stringify(clickableElements, null, 2)
+    JSON.stringify(clickableElements, null, 2),
   );
   logWithElapsed("getClickableElements", `Saved clickableElements.json`);
   return { clickableElements };
@@ -115,14 +156,14 @@ async function getClickableElements(bundleId: string, stepFolder: string) {
 async function takeAndSaveScreenshots(appName: string, stepFolder: string) {
   logWithElapsed(
     "takeAndSaveScreenshots",
-    `Taking screenshot of app window for app: ${appName}`
+    `Taking screenshot of app window for app: ${appName}`,
   );
   const { stdout: swiftWindowsStdout } = await execPromise(
-    `swift swift/windows.swift`
+    `swift swift/windows.swift`,
   );
   logWithElapsed("takeAndSaveScreenshots", `Got swift windows`);
   const swiftWindows = JSON.parse(swiftWindowsStdout).filter(
-    (window: Window) => window.app === appName
+    (window: Window) => window.app === appName,
   );
   const sources = await desktopCapturer.getSources({
     types: ["window"],
@@ -133,7 +174,7 @@ async function takeAndSaveScreenshots(appName: string, stepFolder: string) {
   const matchingPairs = [];
   for (const window of swiftWindows) {
     const source = sources.find(
-      (s) => typeof s.name === "string" && s.name === window.name
+      (s) => typeof s.name === "string" && s.name === window.name,
     );
     if (source) {
       matchingPairs.push({ window, source });
@@ -146,12 +187,12 @@ async function takeAndSaveScreenshots(appName: string, stepFolder: string) {
       console.log(window.name, window.name.replace(" ", "-"));
       const screenshotPath = path.join(
         stepFolder,
-        `screenshot-${window.name.replace(" ", "-")}.png`
+        `screenshot-${window.name.replace(" ", "-")}.png`,
       );
       fs.writeFileSync(screenshotPath, image.toPNG());
       logWithElapsed(
         "takeAndSaveScreenshots",
-        `Saved screenshot: ${screenshotPath}`
+        `Saved screenshot: ${screenshotPath}`,
       );
       if (!screenshotBase64) {
         screenshotBase64 = fs.readFileSync(screenshotPath).toString("base64");
@@ -178,7 +219,7 @@ async function runActionAgent(
   clickableElements: Element[],
   history: { action: string; element?: Element }[],
   screenshotBase64?: string,
-  stepFolder?: string
+  stepFolder?: string,
 ) {
   logWithElapsed("runActionAgent", `Running action agent for app: ${appName}`);
   let parsedClickableElements = "";
@@ -260,7 +301,7 @@ async function runActionAgent(
       "output" in actionResult.state._currentStep
         ? actionResult.state._currentStep.output.trim()
         : undefined
-    }`
+    }`,
   );
   return actionResult.state._currentStep &&
     "output" in actionResult.state._currentStep
@@ -272,7 +313,7 @@ async function performAction(
   action: string,
   bundleId: string,
   clickableElements: unknown[],
-  event: Electron.IpcMainEvent
+  event: Electron.IpcMainEvent,
 ) {
   logWithElapsed("performAction", `Performing action: ${action}`);
   if (action.startsWith("click ")) {
@@ -287,7 +328,7 @@ async function performAction(
     if (element) {
       logWithElapsed(
         "performAction",
-        `Clicked element info: ${JSON.stringify(element)}`
+        `Clicked element info: ${JSON.stringify(element)}`,
       );
     }
     await execPromise(`swift swift/click.swift ${bundleId} ${id}`);
@@ -343,7 +384,7 @@ async function performAction(
 }
 
 export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
-  ipcMain.on("resize", async (event, w, h) => {
+  ipcMain.on("resize", async (_, w, h) => {
     logWithElapsed("setupMainHandlers", "resize event received");
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width } = primaryDisplay.workAreaSize;
@@ -386,7 +427,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
     } catch {
       logWithElapsed(
         "setupMainHandlers",
-        `Could not get bundle id for ${appName}`
+        `Could not get bundle id for ${appName}`,
       );
       event.sender.send("reply", {
         type: "error",
@@ -408,13 +449,14 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
       try {
         const result = await getClickableElements(bundleId, stepFolder);
         clickableElements = result.clickableElements;
+        console.log("found " + clickableElements.length + " elements");
         logWithElapsed("setupMainHandlers", "Got clickable elements");
       } catch (err) {
         logWithElapsed(
           "setupMainHandlers",
           `Could not get clickable elements: ${
             err instanceof Error ? err.stack || err.message : String(err)
-          }`
+          }`,
         );
         event.sender.send("reply", {
           type: "error",
@@ -432,7 +474,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
           "setupMainHandlers",
           `Could not take screenshot: ${
             err instanceof Error ? err.stack || err.message : String(err)
-          }`
+          }`,
         );
       }
 
@@ -442,7 +484,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         clickableElements,
         history,
         screenshotBase64,
-        stepFolder
+        stepFolder,
       );
       logWithElapsed("setupMainHandlers", "actionAgent run complete");
       if (!action) {
@@ -471,7 +513,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         action,
         bundleId,
         clickableElements,
-        event
+        event,
       );
       if (actionResult.type === "click") {
         const id = action.split(" ")[1];
@@ -488,7 +530,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         history.push({ action });
         logWithElapsed(
           "setupMainHandlers",
-          `Sent key: ${actionResult.keyString}`
+          `Sent key: ${actionResult.keyString}`,
         );
       } else {
         logWithElapsed("setupMainHandlers", `Unknown action: ${action}`);

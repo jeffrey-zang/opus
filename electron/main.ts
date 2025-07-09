@@ -3,6 +3,7 @@ import { app, BrowserWindow, Notification, nativeImage } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { setupMainHandlers } from "./mainProcessHandlers.ts";
+import { execFile } from "node:child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -11,6 +12,7 @@ process.env.APP_ROOT = path.join(__dirname, "..");
 export const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 export const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
+export const ENV = process.env.ENV && process.env.ENV == "DEV" ? "DEV" : "PROD";
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, "public")
@@ -67,9 +69,17 @@ app.on("activate", () => {
 });
 
 app.whenReady().then(() => {
+  if (ENV == "DEV") {
+    execFile(
+      "./swift/virtualdisplay/DerivedData/virtualdisplay/Build/Products/Debug/virtualdisplay",
+      ["dev"],
+    );
+    console.log("virtual display");
+  }
+  // TODO: prod version
   if (process.platform === "darwin") {
     const icon = nativeImage.createFromPath(
-      path.join(process.env.VITE_PUBLIC, "click.png")
+      path.join(process.env.VITE_PUBLIC, "click.png"),
     );
     app.dock.setIcon(icon);
   }
