@@ -1,4 +1,10 @@
-import { ipcMain, screen, BrowserWindow, desktopCapturer } from "electron";
+import {
+  ipcMain,
+  screen,
+  BrowserWindow,
+  desktopCapturer,
+  Notification,
+} from "electron";
 import { run } from "@openai/agents";
 import { appSelectionAgent, actionAgent } from "./ai";
 import { exec } from "node:child_process";
@@ -495,6 +501,10 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
           type: "complete",
           message: "Task complete.",
         });
+        new Notification({
+          title: "Task complete",
+          body: "Opus's task is complete!",
+        }).show();
         done = true;
         break;
       }
