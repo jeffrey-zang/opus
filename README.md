@@ -2,12 +2,12 @@
 
 There are a few changes from the Mac version which can be found [here](https://github.com/jeffrey-zang/opus)
 Some notable changes that you can configure:
-- In [ai.ts](https://github.com/adhyaay-karnwal/opus/blob/master/electron/ai.ts) the models are currently set to "gpt-4.1-mini". Feel free to change them for your use
-- A [.env.example](https://github.com/adhyaay-karnwal/opus/blob/master/.env.example) file has been created for easier setup.
+- In [ai.ts](https://github.com/adhyaay-karnwal/opus/blob/Adhyaay/windows-experimental/electron/ai.ts) the models are currently set to "gpt-4.1-mini". Feel free to change them for your use
+- A [.env.example](https://github.com/adhyaay-karnwal/opus/blob/Adhyaay/windows-experimental/.env.example) file has been created for easier setup.
 
 
 ### **ENV**
-A [.env.example](https://github.com/adhyaay-karnwal/opus/blob/master/.env.example) file has been created for easier setup.
+A [.env.example](https://github.com/adhyaay-karnwal/opus/blob/Adhyaay/windows-experimental/.env.example) file has been created for easier setup.
 Make sure to rename the file name to .env and input your OpenAI api key. The .env file should look something like the following:
 ```
 # OpenAI API Configuration
