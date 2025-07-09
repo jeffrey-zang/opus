@@ -443,7 +443,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
       try {
         const result = await getClickableElements(bundleId, stepFolder);
         clickableElements = result.clickableElements;
-        console.log(clickableElements);
+        console.log("found " + clickableElements.length + " elements");
         logWithElapsed("setupMainHandlers", "Got clickable elements");
       } catch (err) {
         logWithElapsed(
