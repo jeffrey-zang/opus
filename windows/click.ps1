@@ -29,6 +29,11 @@ $clickableControlTypes = @(
     [System.Windows.Automation.ControlType]::Hyperlink
     [System.Windows.Automation.ControlType]::List
     [System.Windows.Automation.ControlType]::ListItem
+    [System.Windows.Automation.ControlType]::Text
+    [System.Windows.Automation.ControlType]::Image
+    [System.Windows.Automation.ControlType]::Group
+    [System.Windows.Automation.ControlType]::Pane
+    [System.Windows.Automation.ControlType]::Window
 )
 
 function Get-UIElementInfo {
@@ -66,22 +71,22 @@ function Get-UIElementInfo {
             }
         } catch {}
         
-        # Add to flat list if clickable and has meaningful info
-        if ($isClickable -and ($name -ne "" -or $automationId -ne "" -or $helpText -ne "")) {
+        # Add to flat list if clickable OR has meaningful info (more permissive)
+        if ($isClickable -or ($name -ne "" -and $name -ne $null) -or ($automationId -ne "" -and $automationId -ne $null) -or ($helpText -ne "" -and $helpText -ne $null)) {
             $elementInfo = @{
                 id = $IdCounter.Value
                 AXRole = $controlType.ProgrammaticName -replace "^ControlType\.", ""
-                AXTitle = $name
-                AXHelp = $helpText
-                AXValue = $value
-                AXDescription = $automationId
-                AXSubrole = $className
+                AXTitle = if ($name) { $name } else { "" }
+                AXHelp = if ($helpText) { $helpText } else { "" }
+                AXValue = if ($value) { $value } else { "" }
+                AXDescription = if ($automationId) { $automationId } else { "" }
+                AXSubrole = if ($className) { $className } else { "" }
             }
             
             $FlatList.Add(@{
                 Path = $Path
                 Info = $elementInfo
-            })
+            }) | Out-Null
             
             $IdCounter.Value++
         }
@@ -98,14 +103,21 @@ function Get-UIElementInfo {
 }
 
 function Get-ProcessMainWindow {
-    param([string]$ProcessName)
+    param(
+        [string]$ProcessName,
+        [switch]$NoErrorOutput
+    )
     
     # Remove .exe extension if present
     $ProcessName = $ProcessName -replace '\.exe$', ''
     
     $processes = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
     if (-not $processes) {
-        Write-Output "App not running: $ProcessName"
+        if (-not $NoErrorOutput) {
+            # Output valid JSON error format
+            $errorJson = @{ error = "App not running: $ProcessName" } | ConvertTo-Json
+            Write-Output $errorJson
+        }
         return $null
     }
     
@@ -134,33 +146,45 @@ function Get-ProcessMainWindow {
 function Dump-AppUI {
     param([string]$ProcessName)
     
-    $window = Get-ProcessMainWindow -ProcessName $ProcessName
-    if (-not $window) {
-        return
+    try {
+        $window = Get-ProcessMainWindow -ProcessName $ProcessName -NoErrorOutput
+        if (-not $window) {
+            $errorJson = @{ error = "App not running: $ProcessName" } | ConvertTo-Json
+            Write-Output $errorJson
+            return
+        }
+        
+        $flatList = New-Object System.Collections.ArrayList
+        $idCounter = @{ Value = 0 }
+        
+        Get-UIElementInfo -Element $window -Path @(0) -FlatList $flatList -IdCounter $idCounter
+        
+        # Build ID to path mapping
+        $idToPath = @{}
+        $outputList = @()
+        
+        foreach ($item in $flatList) {
+            $info = $item.Info
+            $path = $item.Path
+            $idToPath[$info.id.ToString()] = ($path | ForEach-Object { $_.ToString() }) -join "."
+            $outputList += $info
+        }
+        
+        # If no elements found, return empty array
+        if ($outputList.Count -eq 0) {
+            Write-Output "[]"
+        } else {
+            # Output JSON
+            $json = $outputList | ConvertTo-Json -Depth 10
+            Write-Output $json
+        }
+        
+        # Save mapping file
+        $idToPath | ConvertTo-Json | Out-File -FilePath $mappingFile -Encoding UTF8
+    } catch {
+        $errorJson = @{ error = "Exception in Dump-AppUI: $($_.Exception.Message)" } | ConvertTo-Json
+        Write-Output $errorJson
     }
-    
-    $flatList = New-Object System.Collections.ArrayList
-    $idCounter = @{ Value = 0 }
-    
-    Get-UIElementInfo -Element $window -Path @(0) -FlatList $flatList -IdCounter $idCounter
-    
-    # Build ID to path mapping
-    $idToPath = @{}
-    $outputList = @()
-    
-    foreach ($item in $flatList) {
-        $info = $item.Info
-        $path = $item.Path
-        $idToPath[$info.id.ToString()] = ($path | ForEach-Object { $_.ToString() }) -join "."
-        $outputList += $info
-    }
-    
-    # Output JSON
-    $json = $outputList | ConvertTo-Json -Depth 10
-    Write-Output $json
-    
-    # Save mapping file
-    $idToPath | ConvertTo-Json | Out-File -FilePath $mappingFile -Encoding UTF8
 }
 
 function Click-ElementById {

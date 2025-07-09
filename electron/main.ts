@@ -3,6 +3,7 @@ import { app, BrowserWindow, Notification, nativeImage } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { setupMainHandlers } from "./mainProcessHandlers.ts";
+import { resetAgents } from "./ai.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -53,6 +54,8 @@ function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
 
+  // Reset agents to ensure they have the latest instructions
+  resetAgents();
   setupMainHandlers({ win });
 }
 

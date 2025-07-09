@@ -22,8 +22,21 @@ export const getAppSelectionAgent = (): Agent => {
         model: "gpt-4.1-mini",
         instructions: `You are given a user request for a task to perform on a computer. Your job is to determine which application is most relevant to complete the task. 
 
-On macOS: Return the name as it appears in the Applications folder or Dock (e.g., "Discord", "Safari", "Messages", "Obsidian").
-On Windows: Return the process name or common app name (e.g., "Discord", "chrome", "notepad", "explorer").
+IMPORTANT: You MUST return the correct app name for the current operating system:
+
+On Windows:
+- For web browsing: "chrome", "firefox", "msedge" (NEVER "Safari" - Safari does not exist on Windows)
+- For email in browser: use "chrome" or "msedge" to open Gmail/Outlook
+- Common apps: "notepad", "explorer", "discord", "slack", "teams"
+
+On macOS:
+- For web browsing: "Safari", "Chrome", "Firefox"
+- For email: "Mail" or use browser
+- Common apps: "Messages", "Discord", "Slack", "Obsidian"
+
+If the user asks to "open gmail" or any web service, return the default browser:
+- Windows: "chrome" or "msedge"
+- macOS: "Safari" or "Chrome"
 
 Do not return anything else. Do not explain your answer. Only output the app name.`,
         modelSettings: { temperature: 0.1 },
@@ -54,27 +67,29 @@ export const getActionAgent = (): Agent => {
         instructions: `You are an agent that controls a desktop application by issuing one of two commands per step, given the user's original request, the app's clickable elements (as a JSON array with id, role, title, description), and a screenshot of the relevant app. You must always return only one of the following, and nothing else: Do not include any additional text or words.
 
 - click <id>: to click a UI element by its id (from the provided list)
-- key <string>: to send a sequence of keypresses (e.g., "hi ^enter"). The syntax for this is that each word is space-separated. So if you want to type "hello", you would use "key hello". Do not include spaces between letters, but instead just between words. For modifiers and special keys, prefix the key with a caret (^). To press a modifier key, use the modifier name prefixed with a caret (e.g., "key ^ctrl+t"). To press a special key, use the special key name prefixed with a caret (e.g., "key ^tab").
+- key <string>: to send a sequence of keypresses. The syntax for this is that each word is space-separated. So if you want to type "hello", you would use "key hello". Do not include spaces between letters, but instead just between words.
 
-The following modifiers are supported:
-- On macOS: command, shift, option, control
-- On Windows: ctrl, shift, alt, win
+IMPORTANT: For keyboard shortcuts, you MUST use the correct platform-specific syntax:
+
+On Windows:
+- Use "^" for Ctrl key (e.g., "key ^l" for Ctrl+L to focus address bar)
+- Use "%" for Alt key (e.g., "key %f4" for Alt+F4)
+- Use "+" for Shift key (e.g., "key +tab" for Shift+Tab)
+- Common shortcuts: "key ^t" (new tab), "key ^w" (close tab), "key ^l" (focus address bar)
+
+On macOS:
+- Use "cmd+" for Command key (e.g., "key cmd+l" for Cmd+L)
+- Use "option+" for Option key
+- Use "shift+" for Shift key
+- Use "control+" for Control key
+- Common shortcuts: "key cmd+t" (new tab), "key cmd+w" (close tab), "key cmd+l" (focus address bar)
 
 The following special keys are supported:
-enter
-tab
-escape
-space
-up
-down
-left
-right
-fn (macOS only)
-and all of the function number keys (f1-f12).
+enter, tab, escape, space, up, down, left, right, backspace, delete, home, end, pageup, pagedown, f1-f12
 
-To type two keys at once, use a plus sign between them. Examples:
-- macOS: "key cmd+t" (new tab)
-- Windows: "key ctrl+t" (new tab)
+Examples for focusing Chrome address bar:
+- Windows: "key ^l"
+- macOS: "key cmd+l"
 
 Never perform any actions that result in the app being brought to the front of the screen (ie. alt+tab, win+space, full screening, etc.) unless it is explicitly stated by the command. These things will be ran in the background so do not interrupt that sanctuary. Never perform an action that will result in the switching of an app, assume that all actions only need to take place on this one app to work.
 

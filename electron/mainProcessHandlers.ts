@@ -33,9 +33,10 @@ async function getAppName(userPrompt: string) {
     "getAppName",
     `Start getAppName with userPrompt: ${userPrompt}`
   );
+  const platform = process.platform === 'darwin' ? 'macOS' : 'Windows';
   const appSelectionAgent = getAppSelectionAgent();
   const appNameResult = await run(appSelectionAgent, [
-    { role: "user", content: userPrompt },
+    { role: "user", content: `Platform: ${platform}\n\nUser request: ${userPrompt}` },
   ]);
   logWithElapsed(
     "getAppName",
@@ -239,7 +240,7 @@ async function runActionAgent(
   }
 
   const contentText =
-    `You are operating on the app: ${appName}.\n\n` +
+    `You are operating on the app: ${appName} on ${process.platform === 'darwin' ? 'macOS' : 'Windows'}.\n\n` +
     `User prompt (the task you must complete): ${userPrompt}\n\n` +
     `Here is a list of clickable elements:\n${parsedClickableElements}\n\n` +
     `Action history so far:\n${
@@ -364,8 +365,7 @@ async function performAction(
     if (process.platform === "darwin") {
       command = `swift swift/key.swift ${bundleId} "${keyString}"`;
     } else {
-      // TODO: Implement Windows key simulation if needed
-      command = `(echo "Key action not implemented on Windows for ${keyString}" & exit 1)`;
+      command = `powershell -ExecutionPolicy Bypass -File windows/key.ps1 ${bundleId} "${keyString}"`;
     }
     await execPromise(command);
     logWithElapsed("performAction", `Executed key: ${keyString}`);
