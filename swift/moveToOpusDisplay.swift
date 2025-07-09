@@ -18,14 +18,20 @@ var windows: CFTypeRef?
 AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windows)
 let windowList = windows as? [AXUIElement]
 
-let windowName = CommandLine.arguments[2]
+// let windowName = CommandLine.arguments[2]
+// guard
+//   var targetWindow: AXUIElement = windowList?.first(where: { window in
+//     var titleValue: AnyObject?
+//     let titleResult = AXUIElementCopyAttributeValue(
+//       window, kAXTitleAttribute as CFString, &titleValue)
+//     return titleResult == .success && (titleValue as? String) == windowName
+//   })
+// else {
+//   throw MyError.runtimeError("window not found")
+// }
+
 guard
-  var targetWindow: AXUIElement = windowList?.first(where: { window in
-    var titleValue: AnyObject?
-    let titleResult = AXUIElementCopyAttributeValue(
-      window, kAXTitleAttribute as CFString, &titleValue)
-    return titleResult == .success && (titleValue as? String) == windowName
-  })
+  var targetWindow: AXUIElement = windowList?.first
 else {
   throw MyError.runtimeError("window not found")
 }
