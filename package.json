@@ -4,8 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "source .env && vite --host",
-    "build": "source .env && tsc && vite build && electron-builder",
+    "dev": "vite --host",
+    "dev:win": "vite --host",
+    "dev:mac": "source .env 2>/dev/null || true && vite --host",
+    "build": "tsc && vite build && electron-builder",
+    "build:win": "tsc && vite build && electron-builder --win",
+    "build:mac": "source .env 2>/dev/null || true && tsc && vite build && electron-builder --mac",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },

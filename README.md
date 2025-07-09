@@ -1,3 +1,40 @@
+## THIS BRANCH IS AN EXPERIMENTAL WINDOWS VERSION AND HAS BEEN TESTED MINIMALLY. I recommend trying "Open gmail" to start. 
+
+There are a few changes from the Mac version which can be found [here](https://github.com/jeffrey-zang/opus)
+Some notable changes that you can configure:
+- In [ai.ts](https://github.com/adhyaay-karnwal/opus/blob/Adhyaay/windows-experimental/electron/ai.ts) the models are currently set to "gpt-4.1-mini". Feel free to change them for your use
+- A [.env.example](https://github.com/adhyaay-karnwal/opus/blob/Adhyaay/windows-experimental/.env.example) file has been created for easier setup.
+
+
+### **ENV**
+A [.env.example](https://github.com/adhyaay-karnwal/opus/blob/Adhyaay/windows-experimental/.env.example) file has been created for easier setup.
+Make sure to rename the file name to .env and input your OpenAI api key. The .env file should look something like the following:
+```
+# OpenAI API Configuration
+# Get your API key from https://platform.openai.com/api-keys
+OPUS_OPENAI_API_KEY=your_openai_api_key_here
+```
+
+###**To run the app do the following:**
+
+1. Install all dependencies
+```
+npm install
+```
+
+2. Setup .env has shown above
+
+3. To run the devlopment server run
+```
+npm run dev
+```
+
+**Production:**
+I will add more here for explaining how to build for different devices. For now run:
+```
+npm run build
+```
+
 # disclaimer ⚠️
 we haven't published any releases yet because the code is currently quite scrappy, just a POC for the hackathon. 
 we are currently working on a rewrite that will come with better build instructions + cleaner code

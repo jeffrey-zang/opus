@@ -6,7 +6,7 @@ import {
   Notification,
 } from "electron";
 import { run } from "@openai/agents";
-import { appSelectionAgent, actionAgent } from "./ai";
+import { getAppSelectionAgent, getActionAgent } from "./ai";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import * as fs from "node:fs";
@@ -33,8 +33,10 @@ async function getAppName(userPrompt: string) {
     "getAppName",
     `Start getAppName with userPrompt: ${userPrompt}`
   );
+  const platform = process.platform === 'darwin' ? 'macOS' : 'Windows';
+  const appSelectionAgent = getAppSelectionAgent();
   const appNameResult = await run(appSelectionAgent, [
-    { role: "user", content: userPrompt },
+    { role: "user", content: `Platform: ${platform}\n\nUser request: ${userPrompt}` },
   ]);
   logWithElapsed(
     "getAppName",
@@ -52,10 +54,15 @@ async function getAppName(userPrompt: string) {
 }
 
 async function getBundleId(appName: string) {
-  logWithElapsed("getBundleId", `Getting bundle id for app: ${appName}`);
-  const { stdout } = await execPromise(`osascript -e 'id of app "${appName}"'`);
-  logWithElapsed("getBundleId", `Bundle id result: ${stdout.trim()}`);
-  return stdout.trim();
+  logWithElapsed("getBundleId", `Getting bundle id or process name for app: ${appName}`);
+  if (process.platform === "darwin") {
+    const { stdout } = await execPromise(`osascript -e 'id of app "${appName}"'`);
+    logWithElapsed("getBundleId", `Bundle id result: ${stdout.trim()}`);
+    return stdout.trim();
+  } else {
+    // On Windows, return process name
+    return appName;
+  }
 }
 
 function createLogFolder(userPrompt: string) {
@@ -80,12 +87,18 @@ function createLogFolder(userPrompt: string) {
   return mainLogFolder;
 }
 
-async function getClickableElements(bundleId: string, stepFolder: string) {
+async function getClickableElements(bundleIdOrProcessName: string, stepFolder: string) {
   logWithElapsed(
     "getClickableElements",
-    `Getting clickable elements for bundleId: ${bundleId}`
+    `Getting clickable elements for: ${bundleIdOrProcessName}`
   );
-  const { stdout } = await execPromise(`swift swift/click.swift ${bundleId}`);
+  let command;
+  if (process.platform === "darwin") {
+    command = `swift swift/click.swift ${bundleIdOrProcessName}`;
+  } else {
+    command = `powershell -ExecutionPolicy Bypass -File windows/click.ps1 ${bundleIdOrProcessName}`;
+  }
+  const { stdout } = await execPromise(command);
   let clickableElements;
   try {
     clickableElements = JSON.parse(stdout);
@@ -117,28 +130,40 @@ async function takeAndSaveScreenshots(appName: string, stepFolder: string) {
     "takeAndSaveScreenshots",
     `Taking screenshot of app window for app: ${appName}`
   );
-  const { stdout: swiftWindowsStdout } = await execPromise(
-    `swift swift/windows.swift`
+  
+  let windowsOutput;
+  if (process.platform === "darwin") {
+    const { stdout } = await execPromise(`swift swift/windows.swift`);
+    windowsOutput = stdout;
+  } else {
+    const { stdout } = await execPromise(`powershell -ExecutionPolicy Bypass -File windows/windows.ps1`);
+    windowsOutput = stdout;
+  }
+  
+  logWithElapsed("takeAndSaveScreenshots", `Got windows`);
+  const windows = JSON.parse(windowsOutput).filter(
+    (window: Window) => window.app === appName || 
+    (process.platform === "win32" && window.app.toLowerCase() === appName.toLowerCase())
   );
-  logWithElapsed("takeAndSaveScreenshots", `Got swift windows`);
-  const swiftWindows = JSON.parse(swiftWindowsStdout).filter(
-    (window: Window) => window.app === appName
-  );
+  
   const sources = await desktopCapturer.getSources({
     types: ["window"],
     fetchWindowIcons: true,
     thumbnailSize: { width: 3840, height: 2160 },
   });
   logWithElapsed("takeAndSaveScreenshots", `Got desktop sources`);
+  
   const matchingPairs = [];
-  for (const window of swiftWindows) {
+  for (const window of windows) {
     const source = sources.find(
-      (s) => typeof s.name === "string" && s.name === window.name
+      (s) => typeof s.name === "string" && 
+      (s.name === window.name || s.name.includes(window.name))
     );
     if (source) {
       matchingPairs.push({ window, source });
     }
   }
+  
   let screenshotBase64;
   for (const { window, source } of matchingPairs) {
     const image = source.thumbnail;
@@ -146,7 +171,7 @@ async function takeAndSaveScreenshots(appName: string, stepFolder: string) {
       console.log(window.name, window.name.replace(" ", "-"));
       const screenshotPath = path.join(
         stepFolder,
-        `screenshot-${window.name.replace(" ", "-")}.png`
+        `screenshot-${window.name.replace(/[\s\/\\:*?"<>|]/g, "-")}.png`
       );
       fs.writeFileSync(screenshotPath, image.toPNG());
       logWithElapsed(
@@ -215,7 +240,7 @@ async function runActionAgent(
   }
 
   const contentText =
-    `You are operating on the app: ${appName}.\n\n` +
+    `You are operating on the app: ${appName} on ${process.platform === 'darwin' ? 'macOS' : 'Windows'}.\n\n` +
     `User prompt (the task you must complete): ${userPrompt}\n\n` +
     `Here is a list of clickable elements:\n${parsedClickableElements}\n\n` +
     `Action history so far:\n${
@@ -252,6 +277,7 @@ async function runActionAgent(
     },
   ];
 
+  const actionAgent = getActionAgent();
   const actionResult = await run(actionAgent, agentInput);
   logWithElapsed(
     "runActionAgent",
@@ -290,7 +316,13 @@ async function performAction(
         `Clicked element info: ${JSON.stringify(element)}`
       );
     }
-    await execPromise(`swift swift/click.swift ${bundleId} ${id}`);
+    let command;
+    if (process.platform === "darwin") {
+      command = `swift swift/click.swift ${bundleId} ${id}`;
+    } else {
+      command = `powershell -ExecutionPolicy Bypass -File windows/click.ps1 ${bundleId} ${id}`;
+    }
+    await execPromise(command);
     logWithElapsed("performAction", `Executed click for id: ${id}`);
     event.sender.send("reply", {
       type: "action",
@@ -329,7 +361,13 @@ async function performAction(
     return { type: "click", id, element: element || null };
   } else if (action.startsWith("key ")) {
     const keyString = action.slice(4);
-    await execPromise(`swift swift/key.swift ${bundleId} "${keyString}"`);
+    let command;
+    if (process.platform === "darwin") {
+      command = `swift swift/key.swift ${bundleId} "${keyString}"`;
+    } else {
+      command = `powershell -ExecutionPolicy Bypass -File windows/key.ps1 ${bundleId} "${keyString}"`;
+    }
+    await execPromise(command);
     logWithElapsed("performAction", `Executed key: ${keyString}`);
     event.sender.send("reply", {
       type: "action",
@@ -343,7 +381,7 @@ async function performAction(
 }
 
 export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
-  ipcMain.on("resize", async (event, w, h) => {
+  ipcMain.on("resize", async (_event, w, h) => {
     logWithElapsed("setupMainHandlers", "resize event received");
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width } = primaryDisplay.workAreaSize;
@@ -498,8 +536,10 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         });
         return;
       }
-      console.log("\n");
+      console.log("");
     }
+
+    // Add delay to observe actions
     await new Promise((resolve) => setTimeout(resolve, 500));
   });
 }
