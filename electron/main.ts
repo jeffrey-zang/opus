@@ -2,8 +2,10 @@ import "dotenv/config";
 import { app, BrowserWindow, Notification, nativeImage } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import fs from "node:fs";
 import { setupMainHandlers } from "./mainProcessHandlers.ts";
 import { execFile } from "node:child_process";
+import os from "node:os";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -13,6 +15,7 @@ export const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 export const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
 export const ENV = process.env.ENV && process.env.ENV == "DEV" ? "DEV" : "PROD";
+export const TMPDIR = path.join(os.tmpdir(), "opus");
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, "public")
@@ -83,6 +86,7 @@ app.whenReady().then(() => {
     );
     app.dock.setIcon(icon);
   }
+  if (!fs.existsSync(TMPDIR)) fs.mkdirSync(TMPDIR);
   new Notification({
     title: "Hello from Opus",
     body: "Opus is ready! Type a prompt and run your first task.",

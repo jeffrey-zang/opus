@@ -1,62 +1,13 @@
-import {
-  ipcMain,
-  screen,
-  BrowserWindow,
-  desktopCapturer,
-  Notification,
-} from "electron";
-import { run } from "@openai/agents";
-import { appSelectionAgent, actionAgent } from "./ai";
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
+import { BrowserWindow, ipcMain, Notification, screen } from "electron";
 import * as fs from "node:fs";
 import * as path from "node:path";
-
-interface Window {
-  pid: string;
-  name: string;
-  app: string;
-}
-
-const execPromise = promisify(exec);
-
-let lastLogTime = Date.now();
-function logWithElapsed(functionName: string, message: string) {
-  const now = Date.now();
-  const elapsed = now - lastLogTime;
-  lastLogTime = now;
-  console.log(`[${functionName}] [${elapsed}ms] ${message}`);
-}
-
-async function getAppName(userPrompt: string) {
-  logWithElapsed(
-    "getAppName",
-    `Start getAppName with userPrompt: ${userPrompt}`,
-  );
-  const appNameResult = await run(appSelectionAgent, [
-    { role: "user", content: userPrompt },
-  ]);
-  logWithElapsed(
-    "getAppName",
-    `Result: ${
-      appNameResult.state._currentStep &&
-      "output" in appNameResult.state._currentStep
-        ? appNameResult.state._currentStep.output.trim()
-        : undefined
-    }`,
-  );
-  return appNameResult.state._currentStep &&
-    "output" in appNameResult.state._currentStep
-    ? appNameResult.state._currentStep.output.trim()
-    : undefined;
-}
-
-async function getBundleId(appName: string) {
-  logWithElapsed("getBundleId", `Getting bundle id for app: ${appName}`);
-  const { stdout } = await execPromise(`osascript -e 'id of app "${appName}"'`);
-  logWithElapsed("getBundleId", `Bundle id result: ${stdout.trim()}`);
-  return stdout.trim();
-}
+import { getAppName, getBundleId } from "./getAppInfo";
+import { getClickableElements } from "./getClickableElements";
+import { runActionAgent } from "./runAgents";
+import { takeAndSaveScreenshots } from "./screenshots";
+import { Element } from "./types";
+import { logWithElapsed } from "./utils";
+import { performAction } from "./performAction";
 
 function createLogFolder(userPrompt: string) {
   logWithElapsed(
@@ -80,309 +31,6 @@ function createLogFolder(userPrompt: string) {
   return mainLogFolder;
 }
 
-async function getClickableElements(bundleId: string, stepFolder: string) {
-  logWithElapsed(
-    "getClickableElements",
-    `Getting clickable elements for bundleId: ${bundleId}`,
-  );
-  const { stdout } = await execPromise(`swift swift/click.swift ${bundleId}`);
-  let clickableElements;
-  try {
-    clickableElements = JSON.parse(stdout);
-    logWithElapsed("getClickableElements", `Parsed clickable elements`);
-  } catch (err) {
-    logWithElapsed("getClickableElements", `JSON parse error: ${stdout}`);
-    throw new Error(stdout);
-  }
-  if (
-    typeof clickableElements === "string" &&
-    clickableElements.match(/App not running|Error|not found|failed/i)
-  ) {
-    logWithElapsed(
-      "getClickableElements",
-      `Error in clickable elements: ${clickableElements}`,
-    );
-    throw new Error(clickableElements);
-  }
-
-  if (clickableElements.length < 5) {
-    console.log("Could not get elements. Enabling accessibility");
-    await execPromise(`swift swift/manualAccessibility.swift ${bundleId}`);
-    const { stdout: windowStdout } = await execPromise(
-      `swift swift/windows.swift ${bundleId}`,
-    );
-    const windows = JSON.parse(windowStdout);
-    const window = windows[0];
-    // TODO: multi window support
-    // for (const window of windows) {
-    const { stdout: coordsStdout } = await execPromise(
-      `swift swift/moveToOpusDisplay.swift ${window.pid} "${window.name}"`,
-    );
-    console.log("moved window");
-    // fetch elements again
-    const { stdout } = await execPromise(`swift swift/click.swift ${bundleId}`);
-    try {
-      clickableElements = JSON.parse(stdout);
-      logWithElapsed("getClickableElements", `Parsed clickable elements`);
-    } catch (err) {
-      logWithElapsed("getClickableElements", `JSON parse error: ${stdout}`);
-      throw new Error(stdout);
-    }
-    if (
-      typeof clickableElements === "string" &&
-      clickableElements.match(/App not running|Error|not found|failed/i)
-    ) {
-      logWithElapsed(
-        "getClickableElements",
-        `Error in clickable elements: ${clickableElements}`,
-      );
-      throw new Error(clickableElements);
-    }
-    await execPromise(
-      `swift swift/moveToCoords.swift ${window.pid} "${window.name}" ${coordsStdout}`,
-    );
-    console.log("moved back");
-    // }
-  }
-
-  fs.writeFileSync(
-    path.join(stepFolder, "clickableElements.json"),
-    JSON.stringify(clickableElements, null, 2),
-  );
-  logWithElapsed("getClickableElements", `Saved clickableElements.json`);
-  return { clickableElements };
-}
-
-async function takeAndSaveScreenshots(appName: string, stepFolder: string) {
-  logWithElapsed(
-    "takeAndSaveScreenshots",
-    `Taking screenshot of app window for app: ${appName}`,
-  );
-  const { stdout: swiftWindowsStdout } = await execPromise(
-    `swift swift/windows.swift`,
-  );
-  logWithElapsed("takeAndSaveScreenshots", `Got swift windows`);
-  const swiftWindows = JSON.parse(swiftWindowsStdout).filter(
-    (window: Window) => window.app === appName,
-  );
-  const sources = await desktopCapturer.getSources({
-    types: ["window"],
-    fetchWindowIcons: true,
-    thumbnailSize: { width: 3840, height: 2160 },
-  });
-  logWithElapsed("takeAndSaveScreenshots", `Got desktop sources`);
-  const matchingPairs = [];
-  for (const window of swiftWindows) {
-    const source = sources.find(
-      (s) => typeof s.name === "string" && s.name === window.name,
-    );
-    if (source) {
-      matchingPairs.push({ window, source });
-    }
-  }
-  let screenshotBase64;
-  for (const { window, source } of matchingPairs) {
-    const image = source.thumbnail;
-    if (!image.isEmpty()) {
-      console.log(window.name, window.name.replace(" ", "-"));
-      const screenshotPath = path.join(
-        stepFolder,
-        `screenshot-${window.name.replace(" ", "-")}.png`,
-      );
-      fs.writeFileSync(screenshotPath, image.toPNG());
-      logWithElapsed(
-        "takeAndSaveScreenshots",
-        `Saved screenshot: ${screenshotPath}`,
-      );
-      if (!screenshotBase64) {
-        screenshotBase64 = fs.readFileSync(screenshotPath).toString("base64");
-      }
-    }
-  }
-  return screenshotBase64;
-}
-
-interface Element {
-  id: number;
-  AXRole?: string;
-  AXTitle?: string;
-  AXHelp?: string;
-  AXValue?: string;
-  AXURL?: string;
-  AXDescription?: string;
-  AXSubrole?: string;
-}
-
-async function runActionAgent(
-  appName: string,
-  userPrompt: string,
-  clickableElements: Element[],
-  history: { action: string; element?: Element }[],
-  screenshotBase64?: string,
-  stepFolder?: string,
-) {
-  logWithElapsed("runActionAgent", `Running action agent for app: ${appName}`);
-  let parsedClickableElements = "";
-  for (let i = 0; i < clickableElements.length; i++) {
-    const element: Element = clickableElements[i];
-    let roleOrSubrole = "";
-    if (element.AXSubrole && element.AXSubrole !== "") {
-      roleOrSubrole = element.AXSubrole + " ";
-    } else if (element.AXRole && element.AXRole !== "") {
-      roleOrSubrole = element.AXRole + " ";
-    }
-    parsedClickableElements +=
-      `${element.id} ${roleOrSubrole}${
-        element.AXTitle !== "" ? `${element.AXTitle} ` : ""
-      }${element.AXValue !== "" ? `${element.AXValue} ` : ""}${
-        element.AXHelp !== "" ? `${element.AXHelp} ` : ""
-      }${element.AXDescription !== "" ? `${element.AXDescription} ` : ""}` +
-      "\n";
-  }
-
-  let parsedHistory = "";
-  for (const h of history) {
-    if (h.action.startsWith("click ") && h.element) {
-      const e = h.element;
-      parsedHistory +=
-        `click ${e.id} ${e.AXRole !== "" ? `${e.AXRole} ` : ""}${
-          e.AXTitle !== "" ? `${e.AXTitle} ` : ""
-        }${e.AXValue !== "" ? `${e.AXValue} ` : ""}${
-          e.AXHelp !== "" ? `${e.AXHelp} ` : ""
-        }${e.AXDescription !== "" ? `${e.AXDescription} ` : ""}`.trim() + "\n";
-    } else if (h.action.startsWith("key ")) {
-      parsedHistory += h.action + "\n";
-    }
-  }
-
-  const contentText =
-    `You are operating on the app: ${appName}.\n\n` +
-    `User prompt (the task you must complete): ${userPrompt}\n\n` +
-    `Here is a list of clickable elements:\n${parsedClickableElements}\n\n` +
-    `Action history so far:\n${
-      parsedHistory
-        ? parsedHistory
-        : "No actions have been completed yet (this is the first action)."
-    }`;
-
-  if (stepFolder) {
-    fs.writeFileSync(path.join(stepFolder, "agent-prompt.txt"), contentText);
-    logWithElapsed("runActionAgent", `Saved agent-prompt.txt`);
-  }
-
-  const agentInput: {
-    role: "user";
-    content: (
-      | { type: "input_text"; text: string }
-      | { type: "input_image"; image: string }
-    )[];
-  }[] = [
-    {
-      role: "user",
-      content: [
-        { type: "input_text" as const, text: contentText },
-        ...(screenshotBase64
-          ? [
-              {
-                type: "input_image" as const,
-                image: `data:image/png;base64,${screenshotBase64}`,
-              },
-            ]
-          : []),
-      ],
-    },
-  ];
-
-  const actionResult = await run(actionAgent, agentInput);
-  logWithElapsed(
-    "runActionAgent",
-    `Action agent result: ${
-      actionResult.state._currentStep &&
-      "output" in actionResult.state._currentStep
-        ? actionResult.state._currentStep.output.trim()
-        : undefined
-    }`,
-  );
-  return actionResult.state._currentStep &&
-    "output" in actionResult.state._currentStep
-    ? actionResult.state._currentStep.output.trim()
-    : undefined;
-}
-
-async function performAction(
-  action: string,
-  bundleId: string,
-  clickableElements: unknown[],
-  event: Electron.IpcMainEvent,
-) {
-  logWithElapsed("performAction", `Performing action: ${action}`);
-  if (action.startsWith("click ")) {
-    const id = action.split(" ")[1];
-    const element = (clickableElements as Element[]).find((el) => {
-      if (typeof el === "object" && el !== null) {
-        const rec = el as unknown as Record<string, unknown>;
-        return String(rec.id) === id || String(rec.elementId) === id;
-      }
-      return false;
-    });
-    if (element) {
-      logWithElapsed(
-        "performAction",
-        `Clicked element info: ${JSON.stringify(element)}`,
-      );
-    }
-    await execPromise(`swift swift/click.swift ${bundleId} ${id}`);
-    logWithElapsed("performAction", `Executed click for id: ${id}`);
-    event.sender.send("reply", {
-      type: "action",
-      message:
-        `Clicked element with id ${id}` +
-        (element
-          ? `${
-              element.AXRole !== "" && element.AXRole
-                ? ` (${element.AXRole})`
-                : ""
-            }` +
-            `${
-              element.AXTitle !== "" && element.AXTitle
-                ? ` (title: ${element.AXTitle})`
-                : ""
-            }` +
-            `${
-              element.AXValue !== "" && element.AXValue
-                ? ` (value: ${element.AXValue})`
-                : ""
-            }` +
-            `${
-              element.AXHelp !== "" && element.AXHelp
-                ? ` (help: ${element.AXHelp})`
-                : ""
-            }` +
-            `${
-              element.AXDescription !== "" && element.AXDescription
-                ? ` (desc: ${element.AXDescription})`
-                : ""
-            }`
-          : ""),
-      id,
-      element: element || null,
-    });
-    return { type: "click", id, element: element || null };
-  } else if (action.startsWith("key ")) {
-    const keyString = action.slice(4);
-    await execPromise(`swift swift/key.swift ${bundleId} "${keyString}"`);
-    logWithElapsed("performAction", `Executed key: ${keyString}`);
-    event.sender.send("reply", {
-      type: "action",
-      message: `Sent key: ${keyString}`,
-    });
-    return { type: "key", keyString };
-  } else {
-    logWithElapsed("performAction", `Unknown action: ${action}`);
-    return { type: "unknown" };
-  }
-}
-
 export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
   ipcMain.on("resize", async (_, w, h) => {
     logWithElapsed("setupMainHandlers", "resize event received");
@@ -399,7 +47,9 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
 
   ipcMain.on("message", async (event, userPrompt) => {
     logWithElapsed("setupMainHandlers", "message event received");
-    const history: { action: string; element?: Element }[] = [];
+    // TODO: completely rework this this sucks
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const history: { action: string; [k: string]: any }[] = [];
     let appName;
     try {
       appName = await getAppName(userPrompt);
@@ -495,7 +145,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         });
         return;
       }
-      if (action === "done" || action === "(done)") {
+      if (action === "done" || action === "(done)" || action.endsWith("STOP")) {
         logWithElapsed("setupMainHandlers", "Task complete");
         event.sender.send("reply", {
           type: "complete",
@@ -515,30 +165,45 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         clickableElements,
         event,
       );
-      if (actionResult.type === "click") {
-        const id = action.split(" ")[1];
-        const element = (clickableElements as Element[]).find((el) => {
-          if (typeof el === "object" && el !== null) {
-            const rec = el as unknown as Record<string, unknown>;
-            return String(rec.id) === id || String(rec.elementId) === id;
-          }
-          return false;
-        });
-        history.push({ action, element });
-        logWithElapsed("setupMainHandlers", `Clicked id: ${actionResult.id}`);
-      } else if (actionResult.type === "key") {
-        history.push({ action });
-        logWithElapsed(
-          "setupMainHandlers",
-          `Sent key: ${actionResult.keyString}`,
-        );
-      } else {
-        logWithElapsed("setupMainHandlers", `Unknown action: ${action}`);
-        event.sender.send("reply", {
-          type: "error",
-          message: `Unknown action: ${action}`,
-        });
-        return;
+      switch (actionResult.type) {
+        case "applescript": {
+          history.push({
+            action,
+            actionResult,
+            script: actionResult.script ?? "",
+            error: actionResult.error ?? "",
+          });
+          break;
+        }
+        case "click": {
+          const id = action.split(" ")[1];
+          const element = (clickableElements as Element[]).find((el) => {
+            if (typeof el === "object" && el !== null) {
+              const rec = el as unknown as Record<string, unknown>;
+              return String(rec.id) === id || String(rec.elementId) === id;
+            }
+            return false;
+          });
+          history.push({ action, actionResult, element });
+          logWithElapsed("setupMainHandlers", `Clicked id: ${actionResult.id}`);
+          break;
+        }
+        case "key": {
+          history.push({ action, actionResult });
+          logWithElapsed(
+            "setupMainHandlers",
+            `Sent key: ${actionResult.keyString}`,
+          );
+          break;
+        }
+        default: {
+          logWithElapsed("setupMainHandlers", `Unknown action: ${action}`);
+          event.sender.send("reply", {
+            type: "error",
+            message: `Unknown action: ${action}`,
+          });
+          return;
+        }
       }
       console.log("\n");
     }
