@@ -39,40 +39,49 @@ export async function performAction(
     }
     case "=UIElementClick": {
       const res = await click(body, clickableElements, bundleId);
-      event.sender.send("reply", {
-        type: "action",
-        message:
-          `Clicked element with id ${res.id}` +
-          (res.element
-            ? `${
-                res.element.AXRole !== "" && res.element.AXRole
-                  ? ` (${res.element.AXRole})`
-                  : ""
-              }` +
-              `${
-                res.element.AXTitle !== "" && res.element.AXTitle
-                  ? ` (title: ${res.element.AXTitle})`
-                  : ""
-              }` +
-              `${
-                res.element.AXValue !== "" && res.element.AXValue
-                  ? ` (value: ${res.element.AXValue})`
-                  : ""
-              }` +
-              `${
-                res.element.AXHelp !== "" && res.element.AXHelp
-                  ? ` (help: ${res.element.AXHelp})`
-                  : ""
-              }` +
-              `${
-                res.element.AXDescription !== "" && res.element.AXDescription
-                  ? ` (desc: ${res.element.AXDescription})`
-                  : ""
-              }`
-            : ""),
-        id: res.id,
-        element: res.element || null,
-      });
+      if (!res.error) {
+        event.sender.send("reply", {
+          type: "action",
+          message:
+            `Clicked element with id ${res.id}` +
+            (res.element
+              ? `${
+                  res.element.AXRole !== "" && res.element.AXRole
+                    ? ` (${res.element.AXRole})`
+                    : ""
+                }` +
+                `${
+                  res.element.AXTitle !== "" && res.element.AXTitle
+                    ? ` (title: ${res.element.AXTitle})`
+                    : ""
+                }` +
+                `${
+                  res.element.AXValue !== "" && res.element.AXValue
+                    ? ` (value: ${res.element.AXValue})`
+                    : ""
+                }` +
+                `${
+                  res.element.AXHelp !== "" && res.element.AXHelp
+                    ? ` (help: ${res.element.AXHelp})`
+                    : ""
+                }` +
+                `${
+                  res.element.AXDescription !== "" && res.element.AXDescription
+                    ? ` (desc: ${res.element.AXDescription})`
+                    : ""
+                }`
+              : ""),
+          id: res.id,
+          element: res.element || null,
+        });
+      } else {
+        event.sender.send("reply", {
+          type: "action",
+          message: `Error clicking element with id ${res.id}`,
+          id: res.id,
+          element: res.element || null,
+        });
+      }
       return res;
     }
     default:

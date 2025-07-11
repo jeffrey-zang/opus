@@ -7,6 +7,16 @@ import Cocoa
 
 let mappingFile = "/tmp/opus-ax-paths.json"
 
+struct StandardError: TextOutputStream, Sendable {
+  private static let handle = FileHandle.standardError
+
+  public func write(_ string: String) {
+    Self.handle.write(Data(string.utf8))
+  }
+}
+
+var stderr = StandardError()
+
 let axAttributes = [
   kAXRoleAttribute,
   kAXTitleAttribute,
@@ -87,12 +97,12 @@ func elementToDictFlat(
 
 func dumpAppUI(bundleId: String) {
   guard AXIsProcessTrusted() else {
-    print("Enable Accessibility permissions for this app.")
+    print("Enable Accessibility permissions for this app.", to: &stderr)
     return
   }
   guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first
   else {
-    print("App not running: \(bundleId)")
+    print("App not running: \(bundleId)", to: &stderr)
     return
   }
   let appElement = AXUIElementCreateApplication(app.processIdentifier)
@@ -104,7 +114,7 @@ func dumpAppUI(bundleId: String) {
   var windows: CFTypeRef?
   AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windows)
   guard let windowList = windows as? [AXUIElement] else {
-    print("No windows")
+    print("No windows", to: &stderr)
     return
   }
 
@@ -172,10 +182,10 @@ func dumpAppUI(bundleId: String) {
     if let jsonString = String(data: data, encoding: .utf8) {
       print(jsonString)
     } else {
-      print("Failed to encode JSON to string")
+      print("Failed to encode JSON to string", to: &stderr)
     }
   } else {
-    print("Failed to serialize JSON")
+    print("Failed to serialize JSON", to: &stderr)
   }
   let idToPathStr = Dictionary(
     uniqueKeysWithValues: idToPath.map {
@@ -201,23 +211,23 @@ func elementAtPath(root: AXUIElement, path: [Int]) -> AXUIElement? {
 
 func clickElementById(bundleId: String, idStr: String) {
   guard AXIsProcessTrusted() else {
-    print("Enable Accessibility permissions for this app.")
+    print("Enable Accessibility permissions for this app.", to: &stderr)
     return
   }
   guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first
   else {
-    print("App not running: \(bundleId)")
+    print("App not running: \(bundleId)", to: &stderr)
     return
   }
   guard let id = Int(idStr) else {
-    print("Invalid id")
+    print("Invalid id", to: &stderr)
     return
   }
   guard let mapData = try? Data(contentsOf: URL(fileURLWithPath: mappingFile)),
     let mapObj = try? JSONSerialization.jsonObject(with: mapData) as? [String: String],
     let pathStr = mapObj["\(id)"]
   else {
-    print("Mapping file or id not found")
+    print("Mapping file or id not found", to: &stderr)
     return
   }
   let comps = pathStr.split(separator: ".").compactMap { Int($0) }
@@ -226,7 +236,7 @@ func clickElementById(bundleId: String, idStr: String) {
   AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windows)
   guard let windowList = windows as? [AXUIElement], let wIdx = comps.first, wIdx < windowList.count
   else {
-    print("Invalid window index")
+    print("Invalid window index", to: &stderr)
     return
   }
   let el = elementAtPath(root: windowList[wIdx], path: Array(comps.dropFirst()))
@@ -234,7 +244,7 @@ func clickElementById(bundleId: String, idStr: String) {
     AXUIElementPerformAction(el, kAXPressAction as CFString)
     print("Clicked element id \(id)")
   } else {
-    print("Element not found for id \(id)")
+    print("Element not found for id \(id)", to: &stderr)
   }
 }
 
@@ -248,5 +258,5 @@ if let b = bundleId, idStr == nil {
 } else if let b = bundleId, let i = idStr {
   clickElementById(bundleId: b, idStr: i)
 } else {
-  print("Usage: swift swift/click.swift <bundleId> <elementId?>")
+  print("Usage: swift swift/click.swift <bundleId> <elementId?>", to: &stderr)
 }

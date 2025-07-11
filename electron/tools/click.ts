@@ -27,7 +27,14 @@ export default async function click(
       `Clicked element info: ${JSON.stringify(element)}`,
     );
   }
-  await execPromise(`swift swift/click.swift ${bundleId} ${id}`);
-  logWithElapsed("performAction", `Executed click for id: ${id}`);
-  return { type: "click", id, element: element || null };
+  const { stderr } = await execPromise(
+    `swift swift/click.swift ${bundleId} ${id}`,
+  );
+  if (!stderr) {
+    logWithElapsed("performAction", `Executed click for id: ${id}`);
+    return { type: "click", id, element: element || null };
+  } else {
+    logWithElapsed("performAction", `Error clicking element ${id}: ${stderr}`);
+    return { type: "click", id, element: element || null, error: stderr };
+  }
 }
