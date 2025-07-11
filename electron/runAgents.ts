@@ -1,4 +1,4 @@
-import { run } from "@openai/agents";
+import { AgentInputItem, run } from "@openai/agents";
 import { actionAgent } from "./ai";
 import { logWithElapsed } from "./utils";
 import { ActionResult, Element } from "./types";
@@ -9,7 +9,7 @@ export async function runActionAgent(
   appName: string,
   userPrompt: string,
   clickableElements: Element[],
-  history: ActionResult[],
+  history: AgentInputItem[],
   screenshotBase64?: string,
   stepFolder?: string,
 ) {
@@ -25,58 +25,49 @@ export async function runActionAgent(
     }
     parsedClickableElements +=
       `${element.id} ${roleOrSubrole}${
-        element.AXTitle !== "" ? `${element.AXTitle} ` : ""
-      }${element.AXValue !== "" ? `${element.AXValue} ` : ""}${
-        element.AXHelp !== "" ? `${element.AXHelp} ` : ""
-      }${element.AXDescription !== "" ? `${element.AXDescription} ` : ""}` +
+        element.AXTitle ? `${element.AXTitle.trim()} ` : ""
+      }${element.AXValue ? `${element.AXValue.trim()} ` : ""}${
+        element.AXHelp ? `${element.AXHelp.trim()} ` : ""
+      }${element.AXDescription ? `${element.AXDescription.trim()} ` : ""}` +
       "\n";
   }
 
-  let parsedHistory = "";
-  for (const h of history) {
-    switch (h.type) {
-      case "click": {
-        const e = h.element;
-        if (e) {
-          parsedHistory +=
-            `click ${e.id} ${e.AXRole !== "" ? `${e.AXRole} ` : ""}${
-              e.AXTitle !== "" ? `${e.AXTitle} ` : ""
-            }${e.AXValue !== "" ? `${e.AXValue} ` : ""}${
-              e.AXHelp !== "" ? `${e.AXHelp} ` : ""
-            }${e.AXDescription !== "" ? `${e.AXDescription} ` : ""}`.trim() +
-            "\n";
-        }
-        break;
-      }
-      case "key": {
-        parsedHistory += h.action + "\n";
-        break;
-      }
-    }
-  }
+  // let parsedHistory = "";
+  // for (const h of history) {
+  //   switch (h.type) {
+  //     case "click": {
+  //       const e = h.element;
+  //       if (e) {
+  //         parsedHistory +=
+  //           `click ${e.id} ${e.AXRole !== "" ? `${e.AXRole} ` : ""}${
+  //             e.AXTitle !== "" ? `${e.AXTitle} ` : ""
+  //           }${e.AXValue !== "" ? `${e.AXValue} ` : ""}${
+  //             e.AXHelp !== "" ? `${e.AXHelp} ` : ""
+  //           }${e.AXDescription !== "" ? `${e.AXDescription} ` : ""}`.trim() +
+  //           "\n";
+  //       }
+  //       break;
+  //     }
+  //     case "key": {
+  //       parsedHistory += "key " + h.keyString + "\n";
+  //       break;
+  //     }
+  //   }
+  // }
 
   const contentText =
     `You are operating on the app: ${appName}.\n\n` +
     `User prompt (the task you must complete): ${userPrompt}\n\n` +
-    `Here is a list of clickable elements:\n${parsedClickableElements}\n\n` +
-    `Action history so far:\n${
-      parsedHistory
-        ? parsedHistory
-        : "No actions have been completed yet (this is the first action)."
-    }`;
+    `Here is a list of clickable elements:\n${parsedClickableElements}\n\n`;
+  //+
+  // `Action history so far:\n${
+  //   parsedHistory
+  //     ? parsedHistory
+  //     : "No actions have been completed yet (this is the first action)."
+  // }`;
 
-  if (stepFolder) {
-    fs.writeFileSync(path.join(stepFolder, "agent-prompt.txt"), contentText);
-    logWithElapsed("runActionAgent", `Saved agent-prompt.txt`);
-  }
-
-  const agentInput: {
-    role: "user";
-    content: (
-      | { type: "input_text"; text: string }
-      | { type: "input_image"; image: string }
-    )[];
-  }[] = [
+  const agentInput: AgentInputItem[] = [
+    ...history,
     {
       role: "user",
       content: [
@@ -92,6 +83,15 @@ export async function runActionAgent(
       ],
     },
   ];
+
+  if (stepFolder) {
+    fs.writeFileSync(path.join(stepFolder, "agent-prompt.txt"), contentText);
+    fs.writeFileSync(
+      path.join(stepFolder, "fullPrompt.json"),
+      JSON.stringify(agentInput),
+    );
+    logWithElapsed("runActionAgent", `Saved agent-prompt.txt`);
+  }
 
   const actionResult = await run(actionAgent, agentInput);
   logWithElapsed(

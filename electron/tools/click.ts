@@ -4,8 +4,10 @@ import { logWithElapsed, execPromise } from "../utils";
 export interface ClickReturnType {
   type: "click";
   id: string;
+  error?: string;
   element: Element | null;
 }
+
 export default async function click(
   body: string,
   clickableElements: Element[],

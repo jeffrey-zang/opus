@@ -29,7 +29,7 @@ func isClickableRole(_ role: String) -> Bool {
     "AXMenuItem",
     "AXCell",
     "AXSearchField",
-    // "AXLink",
+    "AXLink",
     // "AXStaticText",
   ]
   return clickableRoles.contains(role)

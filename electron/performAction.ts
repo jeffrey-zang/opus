@@ -1,5 +1,6 @@
 import runAppleScript from "./tools/appleScript";
 import click from "./tools/click";
+import key from "./tools/key";
 import { ActionResult, Element } from "./types";
 import { logWithElapsed } from "./utils";
 
@@ -26,6 +27,14 @@ export async function performAction(
           message: "Executed script",
         });
       }
+      return res;
+    }
+    case "=Key": {
+      const res = await key(body, bundleId);
+      event.sender.send("reply", {
+        type: "action",
+        message: `Sent key: ${res.keyString}`,
+      });
       return res;
     }
     case "=UIElementClick": {
@@ -73,58 +82,6 @@ export async function performAction(
       };
   }
 
-  // if (action.startsWith("click ")) {
-  //   const id = action.split(" ")[1];
-  //   const element = (clickableElements as Element[]).find((el) => {
-  //     if (typeof el === "object" && el !== null) {
-  //       const rec = el as unknown as Record<string, unknown>;
-  //       return String(rec.id) === id || String(rec.elementId) === id;
-  //     }
-  //     return false;
-  //   });
-  //   if (element) {
-  //     logWithElapsed(
-  //       "performAction",
-  //       `Clicked element info: ${JSON.stringify(element)}`,
-  //     );
-  //   }
-  //   await execPromise(`swift swift/click.swift ${bundleId} ${id}`);
-  //   logWithElapsed("performAction", `Executed click for id: ${id}`);
-  //   event.sender.send("reply", {
-  //     type: "action",
-  //     message:
-  //       `Clicked element with id ${id}` +
-  //       (element
-  //         ? `${
-  //             element.AXRole !== "" && element.AXRole
-  //               ? ` (${element.AXRole})`
-  //               : ""
-  //           }` +
-  //           `${
-  //             element.AXTitle !== "" && element.AXTitle
-  //               ? ` (title: ${element.AXTitle})`
-  //               : ""
-  //           }` +
-  //           `${
-  //             element.AXValue !== "" && element.AXValue
-  //               ? ` (value: ${element.AXValue})`
-  //               : ""
-  //           }` +
-  //           `${
-  //             element.AXHelp !== "" && element.AXHelp
-  //               ? ` (help: ${element.AXHelp})`
-  //               : ""
-  //           }` +
-  //           `${
-  //             element.AXDescription !== "" && element.AXDescription
-  //               ? ` (desc: ${element.AXDescription})`
-  //               : ""
-  //           }`
-  //         : ""),
-  //     id,
-  //     element: element || null,
-  //   });
-  //   return { type: "click", id, element: element || null };
   // } else if (action.startsWith("key ")) {
   //   const keyString = action.slice(4);
   //   await execPromise(`swift swift/key.swift ${bundleId} "${keyString}"`);

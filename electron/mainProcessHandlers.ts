@@ -8,6 +8,7 @@ import { takeAndSaveScreenshots } from "./screenshots";
 import { ActionResult, Element } from "./types";
 import { logWithElapsed } from "./utils";
 import { performAction } from "./performAction";
+import { AgentInputItem } from "@openai/agents";
 
 function createLogFolder(userPrompt: string) {
   logWithElapsed(
@@ -47,7 +48,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
 
   ipcMain.on("message", async (event, userPrompt) => {
     logWithElapsed("setupMainHandlers", "message event received");
-    const history: ActionResult[] = [];
+    const history: AgentInputItem[] = [];
     let appName;
     try {
       appName = await getAppName(userPrompt);
@@ -163,31 +164,44 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         clickableElements,
         event,
       );
+
+      history.push({
+        role: "assistant",
+        content: [{ type: "output_text", text: action }],
+        status: "completed",
+      });
       switch (actionResult.type) {
         case "applescript": {
-          history.push(actionResult);
+          history.push({
+            role: "system",
+            content: actionResult.error
+              ? "Error running script:\n" + actionResult.error
+              : "Success",
+          });
+          logWithElapsed("setupMainHandlers", `Ran applescript`);
           break;
         }
         case "click": {
-          history.push(actionResult);
+          history.push({
+            role: "system",
+            content: actionResult.error
+              ? "Error clicking element:\n" + actionResult.error
+              : "Success",
+          });
           logWithElapsed("setupMainHandlers", `Clicked id: ${actionResult.id}`);
           break;
         }
-        case "key": {
-          history.push({ action, actionResult });
-          logWithElapsed(
-            "setupMainHandlers",
-            `Sent key: ${actionResult.keyString}`,
-          );
-          break;
-        }
-        default: {
+        case "unknown tool": {
+          history.push({
+            role: "system",
+            content: "Unknown tool",
+          });
           logWithElapsed("setupMainHandlers", `Unknown action: ${action}`);
           event.sender.send("reply", {
             type: "error",
             message: `Unknown action: ${action}`,
           });
-          return;
+          break;
         }
       }
       console.log("\n");
