@@ -1,0 +1,31 @@
+import { Element } from "../types";
+import { logWithElapsed, execPromise } from "../utils";
+
+export interface ClickReturnType {
+  type: "click";
+  id: string;
+  element: Element | null;
+}
+export default async function click(
+  body: string,
+  clickableElements: Element[],
+  bundleId: string,
+): Promise<ClickReturnType> {
+  const id = body;
+  const element = clickableElements.find((el) => {
+    if (typeof el === "object" && el !== null) {
+      const rec = el as unknown as Record<string, unknown>;
+      return String(rec.id) === id || String(rec.elementId) === id;
+    }
+    return false;
+  });
+  if (element) {
+    logWithElapsed(
+      "performAction",
+      `Clicked element info: ${JSON.stringify(element)}`,
+    );
+  }
+  await execPromise(`swift swift/click.swift ${bundleId} ${id}`);
+  logWithElapsed("performAction", `Executed click for id: ${id}`);
+  return { type: "click", id, element: element || null };
+}

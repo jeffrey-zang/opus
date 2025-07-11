@@ -5,7 +5,7 @@ import { getAppName, getBundleId } from "./getAppInfo";
 import { getClickableElements } from "./getClickableElements";
 import { runActionAgent } from "./runAgents";
 import { takeAndSaveScreenshots } from "./screenshots";
-import { Element } from "./types";
+import { ActionResult, Element } from "./types";
 import { logWithElapsed } from "./utils";
 import { performAction } from "./performAction";
 
@@ -47,9 +47,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
 
   ipcMain.on("message", async (event, userPrompt) => {
     logWithElapsed("setupMainHandlers", "message event received");
-    // TODO: completely rework this this sucks
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    const history: { action: string; [k: string]: any }[] = [];
+    const history: ActionResult[] = [];
     let appName;
     try {
       appName = await getAppName(userPrompt);
@@ -167,24 +165,11 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
       );
       switch (actionResult.type) {
         case "applescript": {
-          history.push({
-            action,
-            actionResult,
-            script: actionResult.script ?? "",
-            error: actionResult.error ?? "",
-          });
+          history.push(actionResult);
           break;
         }
         case "click": {
-          const id = action.split(" ")[1];
-          const element = (clickableElements as Element[]).find((el) => {
-            if (typeof el === "object" && el !== null) {
-              const rec = el as unknown as Record<string, unknown>;
-              return String(rec.id) === id || String(rec.elementId) === id;
-            }
-            return false;
-          });
-          history.push({ action, actionResult, element });
+          history.push(actionResult);
           logWithElapsed("setupMainHandlers", `Clicked id: ${actionResult.id}`);
           break;
         }

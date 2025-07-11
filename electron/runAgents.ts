@@ -1,7 +1,7 @@
 import { run } from "@openai/agents";
 import { actionAgent } from "./ai";
 import { logWithElapsed } from "./utils";
-import { Element } from "./types";
+import { ActionResult, Element } from "./types";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -9,7 +9,7 @@ export async function runActionAgent(
   appName: string,
   userPrompt: string,
   clickableElements: Element[],
-  history: { action: string; element?: Element }[],
+  history: ActionResult[],
   screenshotBase64?: string,
   stepFolder?: string,
 ) {
@@ -34,16 +34,24 @@ export async function runActionAgent(
 
   let parsedHistory = "";
   for (const h of history) {
-    if (h.action.startsWith("click ") && h.element) {
-      const e = h.element;
-      parsedHistory +=
-        `click ${e.id} ${e.AXRole !== "" ? `${e.AXRole} ` : ""}${
-          e.AXTitle !== "" ? `${e.AXTitle} ` : ""
-        }${e.AXValue !== "" ? `${e.AXValue} ` : ""}${
-          e.AXHelp !== "" ? `${e.AXHelp} ` : ""
-        }${e.AXDescription !== "" ? `${e.AXDescription} ` : ""}`.trim() + "\n";
-    } else if (h.action.startsWith("key ")) {
-      parsedHistory += h.action + "\n";
+    switch (h.type) {
+      case "click": {
+        const e = h.element;
+        if (e) {
+          parsedHistory +=
+            `click ${e.id} ${e.AXRole !== "" ? `${e.AXRole} ` : ""}${
+              e.AXTitle !== "" ? `${e.AXTitle} ` : ""
+            }${e.AXValue !== "" ? `${e.AXValue} ` : ""}${
+              e.AXHelp !== "" ? `${e.AXHelp} ` : ""
+            }${e.AXDescription !== "" ? `${e.AXDescription} ` : ""}`.trim() +
+            "\n";
+        }
+        break;
+      }
+      case "key": {
+        parsedHistory += h.action + "\n";
+        break;
+      }
     }
   }
 

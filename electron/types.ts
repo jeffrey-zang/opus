@@ -1,3 +1,6 @@
+import { AppleScriptReturnType } from "./tools/appleScript";
+import { ClickReturnType } from "./tools/click";
+
 export interface Window {
   pid: string;
   name: string;
@@ -14,3 +17,8 @@ export interface Element {
   AXDescription?: string;
   AXSubrole?: string;
 }
+
+export type ActionResult =
+  | AppleScriptReturnType
+  | ClickReturnType
+  | { type: "unknown tool" };

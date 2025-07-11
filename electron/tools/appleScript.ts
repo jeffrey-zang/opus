@@ -6,8 +6,21 @@ import { promisify } from "node:util";
 
 const execPromise = promisify(exec);
 
-export default async function runAppleScript(body: string) {
+export interface AppleScriptReturnType {
+  type: "applescript";
+  script: string;
+  error: string;
+}
+
+export default async function runAppleScript(
+  body: string,
+): Promise<AppleScriptReturnType> {
   const filePath = path.join(TMPDIR, "script.scpt");
   fs.writeFileSync(filePath, body);
-  return await execPromise(`osascript ${filePath}`);
+  const { stderr } = await execPromise(`osascript ${filePath}`);
+  return {
+    type: "applescript",
+    script: body,
+    error: stderr,
+  };
 }
