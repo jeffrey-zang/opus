@@ -1,10 +1,7 @@
-import { exec } from "node:child_process";
 import { TMPDIR } from "../main";
 import fs from "node:fs";
 import path from "node:path";
-import { promisify } from "node:util";
-
-const execPromise = promisify(exec);
+import { execPromise } from "../utils";
 
 export interface AppleScriptReturnType {
   type: "applescript";

@@ -1,4 +1,5 @@
 import runAppleScript from "./tools/appleScript";
+import runBashScript from "./tools/bash";
 import click from "./tools/click";
 import key from "./tools/key";
 import { openUri } from "./tools/uri";
@@ -37,6 +38,22 @@ export async function performAction(
         type: "action",
         message: `Opened URI ${body}`,
       });
+      return res;
+    }
+
+    case "=Bash": {
+      const res = await runBashScript(body);
+      if (res.error) {
+        event.sender.send("reply", {
+          type: "action",
+          message: "Error when excecuting script: " + res.error,
+        });
+      } else {
+        event.sender.send("reply", {
+          type: "action",
+          message: "Executed script",
+        });
+      }
       return res;
     }
 
