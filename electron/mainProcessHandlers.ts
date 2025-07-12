@@ -51,6 +51,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
     let appName;
     try {
       appName = await getAppName(userPrompt);
+      await execPromise(`open -ga "${appName}"`);
     } catch {
       logWithElapsed("setupMainHandlers", "Could not determine app");
       event.sender.send("reply", {
@@ -68,7 +69,6 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
       });
       return;
     }
-    await execPromise(`open -ga "${appName}"`);
     let bundleId;
     try {
       bundleId = await getBundleId(appName);
