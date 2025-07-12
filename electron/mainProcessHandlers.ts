@@ -170,27 +170,8 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         content: [{ type: "output_text", text: action }],
         status: "completed",
       });
+
       switch (actionResult.type) {
-        case "applescript": {
-          history.push({
-            role: "system",
-            content: actionResult.error
-              ? "Error running script:\n" + actionResult.error
-              : "Success",
-          });
-          logWithElapsed("setupMainHandlers", `Ran applescript`);
-          break;
-        }
-        case "click": {
-          history.push({
-            role: "system",
-            content: actionResult.error
-              ? "Error clicking element:\n" + actionResult.error
-              : "Success",
-          });
-          logWithElapsed("setupMainHandlers", `Clicked id: ${actionResult.id}`);
-          break;
-        }
         case "unknown tool": {
           history.push({
             role: "system",
@@ -202,6 +183,20 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
             message: `Unknown action: ${action}`,
           });
           break;
+        }
+
+        default: {
+          if ("error" in actionResult && actionResult.error) {
+            history.push({
+              role: "system",
+              content: `Error:\n` + actionResult.error,
+            });
+          } else {
+            history.push({
+              role: "system",
+              content: "Success",
+            });
+          }
         }
       }
       console.log("\n");

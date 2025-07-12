@@ -1,6 +1,7 @@
 import { AppleScriptReturnType } from "./tools/appleScript";
 import { ClickReturnType } from "./tools/click";
 import { KeyReturnType } from "./tools/key";
+import { OpenUriReturnType } from "./tools/uri";
 
 export interface Window {
   pid: string;
@@ -23,4 +24,5 @@ export type ActionResult =
   | AppleScriptReturnType
   | ClickReturnType
   | KeyReturnType
+  | OpenUriReturnType
   | { type: "unknown tool" };

@@ -1,6 +1,7 @@
 import runAppleScript from "./tools/appleScript";
 import click from "./tools/click";
 import key from "./tools/key";
+import { openUri } from "./tools/uri";
 import { ActionResult, Element } from "./types";
 import { logWithElapsed } from "./utils";
 
@@ -29,6 +30,16 @@ export async function performAction(
       }
       return res;
     }
+
+    case "=URI": {
+      const res = await openUri(body);
+      event.sender.send("reply", {
+        type: "action",
+        message: `Opened URI ${body}`,
+      });
+      return res;
+    }
+
     case "=Key": {
       const res = await key(body, bundleId);
       event.sender.send("reply", {
@@ -37,6 +48,7 @@ export async function performAction(
       });
       return res;
     }
+
     case "=UIElementClick": {
       const res = await click(body, clickableElements, bundleId);
       if (!res.error) {
