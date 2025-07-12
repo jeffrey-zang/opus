@@ -5,8 +5,7 @@ import { getAppName, getBundleId } from "./getAppInfo";
 import { getClickableElements } from "./getClickableElements";
 import { runActionAgent } from "./runAgents";
 import { takeAndSaveScreenshots } from "./screenshots";
-import { ActionResult, Element } from "./types";
-import { logWithElapsed } from "./utils";
+import { execPromise, logWithElapsed } from "./utils";
 import { performAction } from "./performAction";
 import { AgentInputItem } from "@openai/agents";
 
@@ -69,6 +68,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
       });
       return;
     }
+    await execPromise(`open -ga "${appName}"`);
     let bundleId;
     try {
       bundleId = await getBundleId(appName);
