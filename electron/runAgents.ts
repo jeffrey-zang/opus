@@ -1,9 +1,10 @@
 import { AgentInputItem, run } from "@openai/agents";
-import { actionAgent } from "./ai";
-import { logWithElapsed } from "./utils";
-import { ActionResult, Element } from "./types";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { actionAgent } from "./ai";
+import { Element } from "./types";
+import { logWithElapsed } from "./utils";
+import getApplescriptCommands from "./getApplescriptCommands";
 
 export async function runActionAgent(
   appName: string,
@@ -32,32 +33,10 @@ export async function runActionAgent(
       "\n";
   }
 
-  // let parsedHistory = "";
-  // for (const h of history) {
-  //   switch (h.type) {
-  //     case "click": {
-  //       const e = h.element;
-  //       if (e) {
-  //         parsedHistory +=
-  //           `click ${e.id} ${e.AXRole !== "" ? `${e.AXRole} ` : ""}${
-  //             e.AXTitle !== "" ? `${e.AXTitle} ` : ""
-  //           }${e.AXValue !== "" ? `${e.AXValue} ` : ""}${
-  //             e.AXHelp !== "" ? `${e.AXHelp} ` : ""
-  //           }${e.AXDescription !== "" ? `${e.AXDescription} ` : ""}`.trim() +
-  //           "\n";
-  //       }
-  //       break;
-  //     }
-  //     case "key": {
-  //       parsedHistory += "key " + h.keyString + "\n";
-  //       break;
-  //     }
-  //   }
-  // }
-
   const contentText =
     `You are operating on the app: ${appName}.\n\n` +
     `User prompt (the task you must complete): ${userPrompt}\n\n` +
+    `Here is the sdef (Applescript command directory) file for the current app:\n${await getApplescriptCommands(appName)}\n\n` +
     `Here is a list of clickable elements:\n${parsedClickableElements}\n\n`;
   //+
   // `Action history so far:\n${
@@ -67,6 +46,7 @@ export async function runActionAgent(
   // }`;
 
   const agentInput: AgentInputItem[] = [
+    { role: "user", content: [{ type: "input_text", text: contentText }] },
     ...history,
     {
       role: "user",
