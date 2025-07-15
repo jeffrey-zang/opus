@@ -46,7 +46,7 @@ export async function runActionAgent(
   // }`;
 
   const agentInput: AgentInputItem[] = [
-    { role: "user", content: [{ type: "input_text", text: contentText }] },
+    { role: "user", content: [{ type: "input_text", text: userPrompt }] },
     ...history,
     {
       role: "user",

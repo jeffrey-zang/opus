@@ -42,7 +42,7 @@ export async function takeAndSaveScreenshots(
       console.log(window.name, window.name.replace(" ", "-"));
       const screenshotPath = path.join(
         stepFolder,
-        `screenshot-${window.name.replace(" ", "-")}.png`,
+        `screenshot-${encodeURI(window.name)}.png`,
       );
       fs.writeFileSync(screenshotPath, image.toPNG());
       logWithElapsed(

@@ -171,33 +171,32 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         status: "completed",
       });
 
-      switch (actionResult.type) {
-        case "unknown tool": {
-          history.push({
-            role: "system",
-            content: "Unknown tool",
-          });
-          logWithElapsed("setupMainHandlers", `Unknown action: ${action}`);
-          event.sender.send("reply", {
-            type: "error",
-            message: `Unknown action: ${action}`,
-          });
-          break;
-        }
-
-        default: {
-          if ("error" in actionResult && actionResult.error) {
-            history.push({
-              role: "system",
-              content: `Error:\n` + actionResult.error,
-            });
-          } else {
-            history.push({
-              role: "system",
-              content: "Success",
-            });
-          }
-        }
+      if (actionResult.type == "unknown tool") {
+        history.push({
+          role: "system",
+          content:
+            "Error: unknown tool. Is the tool name separated from the arguments with a new line?",
+        });
+        logWithElapsed("setupMainHandlers", `Unknown action: ${action}`);
+        event.sender.send("reply", {
+          type: "error",
+          message: `Unknown action: ${action}.`,
+        });
+      } else if ("error" in actionResult && actionResult.error) {
+        history.push({
+          role: "system",
+          content: `Error:\n` + actionResult.error,
+        });
+      } else if ("stdout" in actionResult && actionResult.stdout) {
+        history.push({
+          role: "system",
+          content: `Success. Stdout:\n${actionResult.stdout}`,
+        });
+      } else {
+        history.push({
+          role: "system",
+          content: "Success",
+        });
       }
       console.log("\n");
     }

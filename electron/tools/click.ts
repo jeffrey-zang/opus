@@ -1,3 +1,4 @@
+import { ExecException } from "node:child_process";
 import { Element } from "../types";
 import { logWithElapsed, execPromise } from "../utils";
 
@@ -27,13 +28,12 @@ export default async function click(
       `Clicked element info: ${JSON.stringify(element)}`,
     );
   }
-  const { stderr } = await execPromise(
-    `swift swift/click.swift ${bundleId} ${id}`,
-  );
-  if (!stderr) {
+  try {
+    await execPromise(`swift swift/click.swift ${bundleId} ${id}`);
     logWithElapsed("performAction", `Executed click for id: ${id}`);
     return { type: "click", id, element: element || null };
-  } else {
+  } catch (error) {
+    const { stderr } = error as ExecException;
     logWithElapsed("performAction", `Error clicking element ${id}: ${stderr}`);
     return { type: "click", id, element: element || null, error: stderr };
   }

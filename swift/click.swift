@@ -220,7 +220,9 @@ func clickElementById(bundleId: String, idStr: String) {
     return
   }
   guard let id = Int(idStr) else {
-    print("Invalid id", to: &stderr)
+    print(
+      "Invalid id. The ID must be an integer. Do not give a description of the element.",
+      to: &stderr)
     return
   }
   guard let mapData = try? Data(contentsOf: URL(fileURLWithPath: mappingFile)),
@@ -244,7 +246,9 @@ func clickElementById(bundleId: String, idStr: String) {
     AXUIElementPerformAction(el, kAXPressAction as CFString)
     print("Clicked element id \(id)")
   } else {
-    print("Element not found for id \(id)", to: &stderr)
+    print(
+      "Element not found for id \(id). Make sure you use an element from the list given",
+      to: &stderr)
   }
 }
 
