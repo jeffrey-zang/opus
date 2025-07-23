@@ -1,4 +1,4 @@
-import { execPromise, logWithElapsed } from "../utils";
+import { execPromise, logWithElapsed } from "../utils/utils";
 
 export interface KeyReturnType {
   type: "key";
@@ -6,7 +6,7 @@ export interface KeyReturnType {
 }
 export default async function key(
   body: string,
-  bundleId: string,
+  bundleId: string
 ): Promise<KeyReturnType> {
   const keyString = body;
   await execPromise(`swift swift/key.swift ${bundleId} "${keyString}"`);

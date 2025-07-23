@@ -1,6 +1,6 @@
 import { ExecException } from "node:child_process";
 import { Element } from "../types";
-import { logWithElapsed, execPromise } from "../utils";
+import { logWithElapsed, execPromise } from "../utils/utils";
 
 export interface ClickReturnType {
   type: "click";
@@ -12,7 +12,7 @@ export interface ClickReturnType {
 export default async function click(
   body: string,
   clickableElements: Element[],
-  bundleId: string,
+  bundleId: string
 ): Promise<ClickReturnType> {
   const id = body;
   const element = clickableElements.find((el) => {
@@ -25,7 +25,7 @@ export default async function click(
   if (element) {
     logWithElapsed(
       "performAction",
-      `Clicked element info: ${JSON.stringify(element)}`,
+      `Clicked element info: ${JSON.stringify(element)}`
     );
   }
   try {

@@ -1,18 +1,18 @@
 import { BrowserWindow, ipcMain, Notification, screen } from "electron";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getAppName, getBundleId } from "./getAppInfo";
-import { getClickableElements } from "./getClickableElements";
-import { runActionAgent } from "./runAgents";
-import { takeAndSaveScreenshots } from "./screenshots";
-import { execPromise, logWithElapsed } from "./utils";
+import { getAppName, getBundleId } from "./utils/getAppInfo";
+import { getClickableElements } from "./utils/getClickableElements";
+import { runActionAgent } from "./ai/runAgents";
+import { takeAndSaveScreenshots } from "./utils/screenshots";
+import { execPromise, logWithElapsed } from "./utils/utils";
 import { performAction } from "./performAction";
 import { AgentInputItem } from "@openai/agents";
 
 function createLogFolder(userPrompt: string) {
   logWithElapsed(
     "createLogFolder",
-    `Creating log folder for prompt: ${userPrompt}`,
+    `Creating log folder for prompt: ${userPrompt}`
   );
   const mainTimestamp = Date.now().toString();
   const promptFolderName = userPrompt
@@ -22,7 +22,7 @@ function createLogFolder(userPrompt: string) {
   const mainLogFolder = path.join(
     process.cwd(),
     "logs",
-    `${mainTimestamp}-${promptFolderName}`,
+    `${mainTimestamp}-${promptFolderName}`
   );
   if (!fs.existsSync(mainLogFolder)) {
     fs.mkdirSync(mainLogFolder, { recursive: true });
@@ -76,7 +76,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
     } catch {
       logWithElapsed(
         "setupMainHandlers",
-        `Could not get bundle id for ${appName}`,
+        `Could not get bundle id for ${appName}`
       );
       event.sender.send("reply", {
         type: "error",
@@ -105,7 +105,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
           "setupMainHandlers",
           `Could not get clickable elements: ${
             err instanceof Error ? err.stack || err.message : String(err)
-          }`,
+          }`
         );
         event.sender.send("reply", {
           type: "error",
@@ -123,7 +123,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
           "setupMainHandlers",
           `Could not take screenshot: ${
             err instanceof Error ? err.stack || err.message : String(err)
-          }`,
+          }`
         );
       }
 
@@ -133,7 +133,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         clickableElements,
         history,
         screenshotBase64,
-        stepFolder,
+        stepFolder
       );
       logWithElapsed("setupMainHandlers", "actionAgent run complete");
       if (!action) {
@@ -162,7 +162,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         action,
         bundleId,
         clickableElements,
-        event,
+        event
       );
 
       history.push({

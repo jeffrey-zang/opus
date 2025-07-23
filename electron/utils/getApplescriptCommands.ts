@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 export default async function getApplescriptCommands(app: string) {
   const { stdout } = await execPromise(
-    `osascript -e 'POSIX path of (path to application "${app}")'`,
+    `osascript -e 'POSIX path of (path to application "${app}")'`
   );
   const appPath = stdout.trim();
   const resourcePath = path.join(appPath, "Contents/Resources/");

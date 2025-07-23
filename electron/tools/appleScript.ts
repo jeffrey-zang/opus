@@ -1,7 +1,7 @@
 import { TMPDIR } from "../main";
 import fs from "node:fs";
 import path from "node:path";
-import { execPromise } from "../utils";
+import { execPromise } from "../utils/utils";
 import { ExecException } from "node:child_process";
 
 export interface AppleScriptReturnType {
@@ -12,7 +12,7 @@ export interface AppleScriptReturnType {
 }
 
 export default async function runAppleScript(
-  body: string,
+  body: string
 ): Promise<AppleScriptReturnType> {
   const filePath = path.join(TMPDIR, "script.scpt");
   fs.writeFileSync(filePath, body);

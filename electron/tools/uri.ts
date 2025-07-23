@@ -1,5 +1,5 @@
 import { ExecException } from "node:child_process";
-import { execPromise } from "../utils";
+import { execPromise } from "../utils/utils";
 
 export interface OpenUriReturnType {
   type: "uri";

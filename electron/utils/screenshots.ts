@@ -1,24 +1,24 @@
 import { desktopCapturer } from "electron";
 import { execPromise, logWithElapsed } from "./utils";
-import { Window } from "./types";
+import { Window } from "../types";
 
 import * as fs from "node:fs";
 import * as path from "node:path";
 
 export async function takeAndSaveScreenshots(
   appName: string,
-  stepFolder: string,
+  stepFolder: string
 ) {
   logWithElapsed(
     "takeAndSaveScreenshots",
-    `Taking screenshot of app window for app: ${appName}`,
+    `Taking screenshot of app window for app: ${appName}`
   );
   const { stdout: swiftWindowsStdout } = await execPromise(
-    `swift swift/windows.swift`,
+    `swift swift/windows.swift`
   );
   logWithElapsed("takeAndSaveScreenshots", `Got swift windows`);
   const swiftWindows = JSON.parse(swiftWindowsStdout).filter(
-    (window: Window) => window.app === appName,
+    (window: Window) => window.app === appName
   );
   const sources = await desktopCapturer.getSources({
     types: ["window"],
@@ -29,7 +29,7 @@ export async function takeAndSaveScreenshots(
   const matchingPairs = [];
   for (const window of swiftWindows) {
     const source = sources.find(
-      (s) => typeof s.name === "string" && s.name === window.name,
+      (s) => typeof s.name === "string" && s.name === window.name
     );
     if (source) {
       matchingPairs.push({ window, source });
@@ -42,12 +42,12 @@ export async function takeAndSaveScreenshots(
       console.log(window.name, window.name.replace(" ", "-"));
       const screenshotPath = path.join(
         stepFolder,
-        `screenshot-${encodeURI(window.name)}.png`,
+        `screenshot-${encodeURI(window.name)}.png`
       );
       fs.writeFileSync(screenshotPath, image.toPNG());
       logWithElapsed(
         "takeAndSaveScreenshots",
-        `Saved screenshot: ${screenshotPath}`,
+        `Saved screenshot: ${screenshotPath}`
       );
       if (!screenshotBase64) {
         screenshotBase64 = fs.readFileSync(screenshotPath).toString("base64");

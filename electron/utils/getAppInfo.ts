@@ -1,11 +1,11 @@
 import { run } from "@openai/agents";
-import { appSelectionAgent } from "./ai";
+import { appSelectionAgent } from "../ai/initAgents";
 import { execPromise, logWithElapsed } from "./utils";
 
 export async function getAppName(userPrompt: string) {
   logWithElapsed(
     "getAppName",
-    `Start getAppName with userPrompt: ${userPrompt}`,
+    `Start getAppName with userPrompt: ${userPrompt}`
   );
   const appNameResult = await run(appSelectionAgent, [
     { role: "user", content: userPrompt },
@@ -17,7 +17,7 @@ export async function getAppName(userPrompt: string) {
       "output" in appNameResult.state._currentStep
         ? appNameResult.state._currentStep.output.trim()
         : undefined
-    }`,
+    }`
   );
   return appNameResult.state._currentStep &&
     "output" in appNameResult.state._currentStep

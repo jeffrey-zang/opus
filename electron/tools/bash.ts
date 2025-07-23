@@ -1,7 +1,7 @@
 import { TMPDIR } from "../main";
 import fs from "node:fs";
 import path from "node:path";
-import { execPromise } from "../utils";
+import { execPromise } from "../utils/utils";
 import { ExecException } from "node:child_process";
 
 export interface BashScriptReturnType {
@@ -12,7 +12,7 @@ export interface BashScriptReturnType {
 }
 
 export default async function runBashScript(
-  body: string,
+  body: string
 ): Promise<BashScriptReturnType> {
   const filePath = path.join(TMPDIR, "script.sh");
   fs.writeFileSync(filePath, body);

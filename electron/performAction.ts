@@ -4,13 +4,13 @@ import click from "./tools/click";
 import key from "./tools/key";
 import { openUri } from "./tools/uri";
 import { ActionResult, Element } from "./types";
-import { logWithElapsed } from "./utils";
+import { logWithElapsed } from "./utils/utils";
 
 export async function performAction(
   action: string,
   bundleId: string,
   clickableElements: Element[],
-  event: Electron.IpcMainEvent,
+  event: Electron.IpcMainEvent
 ): Promise<ActionResult> {
   logWithElapsed("performAction", `Performing action: ${action}`);
   const address = action.slice(0, action.indexOf("\n"));
