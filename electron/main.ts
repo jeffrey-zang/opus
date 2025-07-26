@@ -26,8 +26,10 @@ let win: BrowserWindow | null;
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "click.png"),
+    // width: 500,
+    // height: 56,
     width: 500,
-    height: 56,
+    height: 74,
     resizable: false,
     trafficLightPosition: { x: -100, y: -100 },
     alwaysOnTop: false,

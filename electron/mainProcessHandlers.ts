@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { getAppName, getBundleId } from "./utils/getAppInfo";
 import { getClickableElements } from "./utils/getClickableElements";
-import { runActionAgent } from "./ai/runAgents";
+import { runActionAgentStreaming } from "./ai/runAgents";
 import { takeAndSaveScreenshots } from "./utils/screenshots";
 import { execPromise, logWithElapsed } from "./utils/utils";
 import { performAction } from "./performAction";
@@ -132,16 +132,103 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         );
       }
 
-      const action = await runActionAgent(
+      let action = "";
+      let hasToolCall = false;
+
+      const streamGenerator = runActionAgentStreaming(
         appName,
         userPrompt,
         clickableElements,
         history,
         screenshotBase64,
-        stepFolder
+        stepFolder,
+        async (toolName: string, args: string) => {
+          // Execute tool call
+          const actionResult = await performAction(
+            `=${toolName}\n${args}`,
+            bundleId,
+            clickableElements,
+            event
+          );
+          
+          let resultText = "";
+          if (Array.isArray(actionResult)) {
+            // Handle array of results
+            const firstResult = actionResult[0];
+            if (firstResult && "type" in firstResult && firstResult.type === "unknown tool") {
+              resultText = "Error: unknown tool. Is the tool name separated from the arguments with a new line?";
+            } else if (firstResult && "error" in firstResult && firstResult.error) {
+              resultText = `Error:\n${firstResult.error}`;
+            } else if (firstResult && "stdout" in firstResult && firstResult.stdout) {
+              resultText = `Success. Stdout:\n${firstResult.stdout}`;
+            } else {
+              resultText = "Success";
+            }
+          } else {
+            // Handle single result
+            if ("type" in actionResult && actionResult.type === "unknown tool") {
+              resultText = "Error: unknown tool. Is the tool name separated from the arguments with a new line?";
+            } else if ("error" in actionResult && actionResult.error) {
+              resultText = `Error:\n${actionResult.error}`;
+            } else if ("stdout" in actionResult && actionResult.stdout) {
+              resultText = `Success. Stdout:\n${actionResult.stdout}`;
+            } else {
+              resultText = "Success";
+            }
+          }
+          
+          return resultText;
+        }
       );
+
+      // Stream tokens and handle tool calls
+      for await (const chunk of streamGenerator) {
+        switch (chunk.type) {
+          case "text":
+            event.sender.send("stream", {
+              type: "text",
+              content: chunk.content
+            });
+            action += chunk.content;
+            break;
+          case "tool_start":
+            event.sender.send("stream", {
+              type: "tool_start",
+              toolName: chunk.toolName
+            });
+            hasToolCall = true;
+            break;
+          case "tool_args":
+            event.sender.send("stream", {
+              type: "tool_args",
+              content: chunk.content
+            });
+            break;
+          case "tool_execute":
+            event.sender.send("stream", {
+              type: "tool_execute",
+              toolName: chunk.toolName
+            });
+            break;
+          case "tool_result":
+            event.sender.send("stream", {
+              type: "tool_result",
+              content: chunk.content
+            });
+            break;
+        }
+      }
+      
+      // Send a completion signal to frontend
+      if (!hasToolCall && action.trim()) {
+        // This was just text, mark streaming as complete for this chunk
+        setTimeout(() => {
+          event.sender.send("stream", { type: "chunk_complete" });
+        }, 50);
+      }
+
       logWithElapsed("setupMainHandlers", "actionAgent run complete");
-      if (!action) {
+      if (!action && !hasToolCall) {
         logWithElapsed("setupMainHandlers", "No action returned");
         event.sender.send("reply", {
           type: "error",
@@ -149,6 +236,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         });
         return;
       }
+      
       if (action === "done" || action === "(done)" || action.endsWith("STOP")) {
         logWithElapsed("setupMainHandlers", "Task complete");
         event.sender.send("reply", {
@@ -163,44 +251,12 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         break;
       }
 
-      const actionResult = await performAction(
-        action,
-        bundleId,
-        clickableElements,
-        event
-      );
-
-      history.push({
-        role: "assistant",
-        content: [{ type: "output_text", text: action }],
-        status: "completed",
-      });
-
-      if (actionResult.type == "unknown tool") {
+      // Add to history after each interaction
+      if (action.trim() || hasToolCall) {
         history.push({
-          role: "system",
-          content:
-            "Error: unknown tool. Is the tool name separated from the arguments with a new line?",
-        });
-        logWithElapsed("setupMainHandlers", `Unknown action: ${action}`);
-        event.sender.send("reply", {
-          type: "error",
-          message: `Unknown action: ${action}.`,
-        });
-      } else if ("error" in actionResult && actionResult.error) {
-        history.push({
-          role: "system",
-          content: `Error:\n` + actionResult.error,
-        });
-      } else if ("stdout" in actionResult && actionResult.stdout) {
-        history.push({
-          role: "system",
-          content: `Success. Stdout:\n${actionResult.stdout}`,
-        });
-      } else {
-        history.push({
-          role: "system",
-          content: "Success",
+          role: "assistant",
+          content: [{ type: "output_text", text: action }],
+          status: "completed",
         });
       }
       console.log("\n");

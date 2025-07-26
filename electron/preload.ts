@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld("ipcRenderer", {
   sendMessage: (msg: string) => ipcRenderer.send("message", msg),
   onReply: (callback: (data: string) => void) =>
     ipcRenderer.on("reply", (_, data) => callback(data)),
+  removeAllListeners: (channel: string) => ipcRenderer.removeAllListeners(channel),
 
   // You can expose other APTs you need here.
   // ...
