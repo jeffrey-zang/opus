@@ -11,10 +11,33 @@ export async function performAction(
   bundleId: string,
   clickableElements: Element[],
   event: Electron.IpcMainEvent
-): Promise<ActionResult> {
+): Promise<ActionResult | ActionResult[]> {
   logWithElapsed("performAction", `Performing action: ${action}`);
-  const address = action.slice(0, action.indexOf("\n"));
-  const body = action.slice(action.indexOf("\n") + 1);
+
+  // Split into commands: lines starting with =
+  const commandRegex = /(^=\w+[ \n][^=]*)/gms;
+  const matches = action.match(commandRegex);
+  if (matches && matches.length > 1) {
+    const results: ActionResult[] = [];
+    for (const cmd of matches) {
+      // Recursively call performAction for each command
+      // Remove leading/trailing whitespace
+      const res = await performAction(
+        cmd.trim(),
+        bundleId,
+        clickableElements,
+        event
+      );
+      if (Array.isArray(res)) results.push(...res);
+      else results.push(res);
+    }
+    return results;
+  }
+
+  const match = action.match(/^(=\w+)[ \n]?(.*)$/s);
+  const address = match ? match[1] : action;
+  const body = match ? match[2] : "";
+
   switch (address) {
     case "=Applescript": {
       const res = await runAppleScript(body);

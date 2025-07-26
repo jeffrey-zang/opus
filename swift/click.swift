@@ -128,9 +128,9 @@ func dumpAppUI(bundleId: String) {
     print("[dumpAppUI] Created AXUIElement for app pid=\(app.processIdentifier)")
   }
 
-  let result = AXUIElementSetAttributeValue(
-    appElement, "AXManualAccessibility" as CFString, kCFBooleanTrue)
-  print("Setting 'AXManualAccessibility' \(result == .success ? "succeeded" : "failed")")
+  // let result = AXUIElementSetAttributeValue(
+  //   appElement, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+  // print("Setting 'AXManualAccessibility' \(result == .success ? "succeeded" : "failed")")
 
   var windows: CFTypeRef?
   AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windows)

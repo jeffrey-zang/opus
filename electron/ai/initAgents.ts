@@ -41,7 +41,7 @@ or
 22
 \`\`\`
 (Do not put the response in a codeblock)
-You can only use one tool per step.
+You can only use one tool per step. You are only able to use one tool per step.
 
 Always be sure to prefix your response equal sign and the tool that is being used. (ie. =Click, =Key, =Applescript)
 
