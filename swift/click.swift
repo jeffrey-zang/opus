@@ -1,11 +1,25 @@
 import ApplicationServices
 import Cocoa
 
+var verbose = CommandLine.arguments.contains("--verbose") || CommandLine.arguments.contains("-v")
+
+let filteredArgs = CommandLine.arguments.filter { $0 != "--verbose" && $0 != "-v" }
+
 // This script is used to click elements on an app (background or foreground)
 // usage: click <bundleId> <elementId?>
 // elementId is optional. If not provided, the script will list all elements.
 
 let mappingFile = "/tmp/opus-ax-paths.json"
+
+struct StandardError: TextOutputStream, Sendable {
+  private static let handle = FileHandle.standardError
+
+  public func write(_ string: String) {
+    Self.handle.write(Data(string.utf8))
+  }
+}
+
+var stderr = StandardError()
 
 let axAttributes = [
   kAXRoleAttribute,
@@ -29,9 +43,10 @@ func isClickableRole(_ role: String) -> Bool {
     "AXMenuItem",
     "AXCell",
     "AXSearchField",
-    // "AXLink",
+    "AXLink",
     // "AXStaticText",
   ]
+  if verbose { print("Checking if role is clickable: \(role)") }
   return clickableRoles.contains(role)
 }
 
@@ -51,6 +66,9 @@ func elementToDictFlat(
       if str == "AXGroup" { isGroup = true }
     }
     dict[attr as String] = str
+    if verbose {
+      print("[elementToDictFlat] path=\(path) attr=\(attr) value=\(str) err=\(err.rawValue)")
+    }
   }
 
   // let mirror = Mirror(reflecting: element)
@@ -66,7 +84,9 @@ func elementToDictFlat(
     == .success,
     let arr = children as? [AXUIElement], !arr.isEmpty
   {
-    // print("children \(arr)")
+    if verbose {
+      print("[elementToDictFlat] path=\(path) has \(arr.count) children")
+    }
     for (i, c) in arr.enumerated() { elementToDictFlat(c, path: path + [i], flatList: &flatList) }
   }
   var shouldAdd = false
@@ -80,22 +100,33 @@ func elementToDictFlat(
       if actions.contains("AXPress") {
         shouldAdd = true
       }
+      if verbose {
+        print("[elementToDictFlat] path=\(path) AXStaticText actions=\(actions)")
+      }
     }
   }
-  if !isGroup && shouldAdd { flatList.append((path, dict)) }
+  if !isGroup && shouldAdd {
+    if verbose {
+      print("[elementToDictFlat] Adding element at path=\(path) dict=\(dict)")
+    }
+    flatList.append((path, dict))
+  }
 }
 
 func dumpAppUI(bundleId: String) {
   guard AXIsProcessTrusted() else {
-    print("Enable Accessibility permissions for this app.")
+    print("Enable Accessibility permissions for this app.", to: &stderr)
     return
   }
   guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first
   else {
-    print("App not running: \(bundleId)")
+    print("App not running: \(bundleId)", to: &stderr)
     return
   }
   let appElement = AXUIElementCreateApplication(app.processIdentifier)
+  if verbose {
+    print("[dumpAppUI] Created AXUIElement for app pid=\(app.processIdentifier)")
+  }
 
   // let result = AXUIElementSetAttributeValue(
   //   appElement, "AXManualAccessibility" as CFString, kCFBooleanTrue)
@@ -104,12 +135,18 @@ func dumpAppUI(bundleId: String) {
   var windows: CFTypeRef?
   AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windows)
   guard let windowList = windows as? [AXUIElement] else {
-    print("No windows")
+    print("No windows", to: &stderr)
     return
+  }
+  if verbose {
+    print("[dumpAppUI] Found \(windowList.count) windows")
   }
 
   var flatList: [([Int], [String: Any])] = []
   for (wIdx, w) in windowList.enumerated() {
+    if verbose {
+      print("[dumpAppUI] Traversing window index \(wIdx)")
+    }
     // var sizeValue: CFTypeRef?
     // if AXUIElementCopyAttributeValue(w, kAXSizeAttribute as CFString, &sizeValue) == .success,
     //   let size = sizeValue as? CGSize
@@ -172,10 +209,10 @@ func dumpAppUI(bundleId: String) {
     if let jsonString = String(data: data, encoding: .utf8) {
       print(jsonString)
     } else {
-      print("Failed to encode JSON to string")
+      print("Failed to encode JSON to string", to: &stderr)
     }
   } else {
-    print("Failed to serialize JSON")
+    print("Failed to serialize JSON", to: &stderr)
   }
   let idToPathStr = Dictionary(
     uniqueKeysWithValues: idToPath.map {
@@ -183,6 +220,9 @@ func dumpAppUI(bundleId: String) {
     })
   if let mapData = try? JSONSerialization.data(withJSONObject: idToPathStr, options: []) {
     try? mapData.write(to: URL(fileURLWithPath: mappingFile))
+    if verbose {
+      print("[dumpAppUI] Wrote id-to-path mapping to \(mappingFile)")
+    }
   }
 }
 
@@ -191,33 +231,46 @@ func elementAtPath(root: AXUIElement, path: [Int]) -> AXUIElement? {
   for idx in path {
     var children: CFTypeRef?
     if AXUIElementCopyAttributeValue(el, kAXChildrenAttribute as CFString, &children) != .success {
+      if verbose {
+        print("[elementAtPath] Failed to get children at path=\(path)")
+      }
       return nil
     }
-    guard let arr = children as? [AXUIElement], idx < arr.count else { return nil }
+    guard let arr = children as? [AXUIElement], idx < arr.count else {
+      if verbose {
+        print("[elementAtPath] Invalid child index \(idx) at path=\(path)")
+      }
+      return nil
+    }
     el = arr[idx]
+  }
+  if verbose {
+    print("[elementAtPath] Found element at path=\(path)")
   }
   return el
 }
 
 func clickElementById(bundleId: String, idStr: String) {
   guard AXIsProcessTrusted() else {
-    print("Enable Accessibility permissions for this app.")
+    print("Enable Accessibility permissions for this app.", to: &stderr)
     return
   }
   guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first
   else {
-    print("App not running: \(bundleId)")
+    print("App not running: \(bundleId)", to: &stderr)
     return
   }
   guard let id = Int(idStr) else {
-    print("Invalid id")
+    print(
+      "Invalid id. The ID must be an integer. Do not give a description of the element.",
+      to: &stderr)
     return
   }
   guard let mapData = try? Data(contentsOf: URL(fileURLWithPath: mappingFile)),
     let mapObj = try? JSONSerialization.jsonObject(with: mapData) as? [String: String],
     let pathStr = mapObj["\(id)"]
   else {
-    print("Mapping file or id not found")
+    print("Mapping file or id not found", to: &stderr)
     return
   }
   let comps = pathStr.split(separator: ".").compactMap { Int($0) }
@@ -226,21 +279,30 @@ func clickElementById(bundleId: String, idStr: String) {
   AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windows)
   guard let windowList = windows as? [AXUIElement], let wIdx = comps.first, wIdx < windowList.count
   else {
-    print("Invalid window index")
+    print("Invalid window index", to: &stderr)
     return
   }
   let el = elementAtPath(root: windowList[wIdx], path: Array(comps.dropFirst()))
   if let el = el {
+    if verbose {
+      print("[clickElementById] Performing AXPress on element id=\(id) path=\(comps)")
+    }
     AXUIElementPerformAction(el, kAXPressAction as CFString)
     print("Clicked element id \(id)")
   } else {
-    print("Element not found for id \(id)")
+    print(
+      "Element not found for id \(id). Make sure you use an element from the list given",
+      to: &stderr)
   }
 }
 
-let bundleId = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : nil
-let idStr = CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : nil
+let bundleId = filteredArgs.count > 1 ? filteredArgs[1] : nil
+let idStr = filteredArgs.count > 2 ? filteredArgs[2] : nil
 
+if verbose {
+  print("[main] Arguments: \(CommandLine.arguments)")
+  print("[main] Filtered arguments: \(filteredArgs)")
+}
 if let b = bundleId, idStr == nil {
   // print("trusted status")
   // print(AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary))
@@ -248,5 +310,5 @@ if let b = bundleId, idStr == nil {
 } else if let b = bundleId, let i = idStr {
   clickElementById(bundleId: b, idStr: i)
 } else {
-  print("Usage: swift swift/click.swift <bundleId> <elementId?>")
+  print("Usage: swift swift/click.swift <bundleId> <elementId?> [--verbose]", to: &stderr)
 }
