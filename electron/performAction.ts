@@ -66,7 +66,7 @@ export async function performAction(
       return res;
     }
 
-    case "=UIElementClick": {
+    case "=Click": {
       const res = await click(body, clickableElements, bundleId);
       if (!res.error) {
         event.sender.send("reply", {

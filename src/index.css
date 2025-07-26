@@ -20,24 +20,24 @@
 }
 
 @font-face {
-  font-family: 'Satoshi';
-  src: url('./fonts/Satoshi/Satoshi-Regular.woff') format('woff');
+  font-family: "Satoshi";
+  src: url("./fonts/Satoshi/Satoshi-Regular.woff") format("woff");
   font-weight: normal;
   font-style: normal;
   font-display: swap; /* Improves performance by displaying fallback text while the font loads */
 }
 
 @font-face {
-  font-family: 'Satoshi';
-  src: url('./fonts/Satoshi/Satoshi-Medium.woff') format('woff');
+  font-family: "Satoshi";
+  src: url("./fonts/Satoshi/Satoshi-Medium.woff") format("woff");
   font-weight: medium;
   font-style: normal;
   font-display: swap; /* Improves performance by displaying fallback text while the font loads */
 }
 
 @font-face {
-  font-family: 'Satoshi';
-  src: url('./fonts/Satoshi/Satoshi-Bold.woff') format('woff');
+  font-family: "Satoshi";
+  src: url("./fonts/Satoshi/Satoshi-Bold.woff") format("woff");
   font-weight: bold;
   font-style: normal;
   font-display: swap; /* Improves performance by displaying fallback text while the font loads */
@@ -54,4 +54,11 @@
 
 body {
   margin: 0;
+}
+
+.app-region-drag {
+  -webkit-app-region: drag;
+}
+.app-region-no-drag {
+  -webkit-app-region: no-drag;
 }
