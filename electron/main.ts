@@ -27,7 +27,7 @@ function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "click.png"),
     width: 500,
-    height: 500,
+    height: 56,
     resizable: false,
     trafficLightPosition: { x: -100, y: -100 },
     alwaysOnTop: false,
@@ -43,7 +43,7 @@ function createWindow() {
       preload: path.join(__dirname, "preload.mjs"),
     },
   });
-  // win.webContents.openDevTools({ mode: "detach" });
+  win.webContents.openDevTools({ mode: "detach" });
 
   win.webContents.on("did-finish-load", () => {
     win?.webContents.send("main-process-message", new Date().toLocaleString());
@@ -75,14 +75,14 @@ app.whenReady().then(() => {
   if (ENV == "DEV") {
     execFile(
       "./swift/virtualdisplay/DerivedData/virtualdisplay/Build/Products/Debug/virtualdisplay",
-      ["dev"],
+      ["dev"]
     );
     console.log("virtual display");
   }
   // TODO: prod version
   if (process.platform === "darwin") {
     const icon = nativeImage.createFromPath(
-      path.join(process.env.VITE_PUBLIC, "click.png"),
+      path.join(process.env.VITE_PUBLIC, "click.png")
     );
     app.dock.setIcon(icon);
   }

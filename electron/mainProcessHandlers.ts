@@ -32,6 +32,7 @@ function createLogFolder(userPrompt: string) {
 }
 
 export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
+  let firstPromptReceived = false;
   ipcMain.on("resize", async (_, w, h) => {
     logWithElapsed("setupMainHandlers", "resize event received");
     const primaryDisplay = screen.getPrimaryDisplay();
@@ -46,6 +47,10 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
   });
 
   ipcMain.on("message", async (event, userPrompt) => {
+    if (!firstPromptReceived && win) {
+      win.setSize(500, 500, true);
+      firstPromptReceived = true;
+    }
     logWithElapsed("setupMainHandlers", "message event received");
     const history: AgentInputItem[] = [];
     let appName;
