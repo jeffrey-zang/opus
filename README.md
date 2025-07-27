@@ -1,8 +1,10 @@
+<a href="https://tryop.us/" target='_blank' rel='noreferrer'>
 <img width="500" height="286.92" alt="banner" src="https://github.com/jeffrey-zang/opus/blob/master/assets/banner.svg" />
+</a>
 
 # Opus
 
-Opus is an on-device computer-use app for MacOS that works **fully in the background**.
+[Opus](https://tryop.us/) is an on-device computer-use app for MacOS that works **fully in the background**.
 
 Current computer use solutions are slow, expensive, or limited in some way. Opus takes a new approach by programmatically interacting with apps using AppleScript, the MacOS API, and a other tools. Additionally, Opus is able to work 100% in the background without restricting any sort of functionality from the user.
 
