@@ -28,6 +28,8 @@ let axAttributes = [
   kAXValueAttribute,
   kAXDescriptionAttribute,
   kAXSubroleAttribute,
+  kAXRoleDescriptionAttribute,
+  kAXPlaceholderValueAttribute
 ]
 
 func isClickableRole(_ role: String) -> Bool {
