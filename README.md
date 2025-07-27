@@ -1,3 +1,5 @@
+<img width="237" height="136" alt="banner" src="https://github.com/jeffrey-zang/opus/blob/master/assets/banner.png" />
+
 # Opus
 
 Opus is an on-device computer-use app for MacOS that works **fully in the background**.
