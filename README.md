@@ -1,4 +1,4 @@
-<img width="500" height="286.92" alt="banner" src="https://github.com/jeffrey-zang/opus/blob/master/assets/banner.png" />
+<img width="500" height="286.92" alt="banner" src="https://github.com/jeffrey-zang/opus/blob/master/assets/banner.svg" />
 
 # Opus
 
