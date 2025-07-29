@@ -156,7 +156,6 @@ const App = () => {
 
   const renderAsciiWithHover = () => {
     const elements: React.ReactNode[] = [];
-    let globalIndex = 0;
     for (let row = 0; row < numRows; row++) {
       for (let col = 0; col < numCols; col++) {
         const char = paddedRows[row][col];
@@ -183,7 +182,6 @@ const App = () => {
               #
             </span>
           );
-          globalIndex++;
           continue;
         }
         className += inRadius
@@ -202,7 +200,6 @@ const App = () => {
             {char}
           </span>
         );
-        globalIndex++;
       }
       elements.push(<br key={`br-${row}`} />);
     }
@@ -210,38 +207,39 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex flex-col lg:flex-row items-center justify-center p-4 gap-8">
       <pre
         className="
             font-mono 
             text-center 
             font-bold 
             leading-[1.1]
-            text-[0.35rem]
-            p-8
+            text-[0.25rem] sm:text-[0.35rem]
+            p-4 sm:p-8
             font-stretch-150%
+            flex-shrink-0
           "
       >
         {renderAsciiWithHover()}
       </pre>
-      <div>
-        <h1 className="text-white text-4xl font-bold">Opus</h1>
-        <p className="text-white">
+      <div className="max-w-md w-full">
+        <h1 className="text-white text-2xl sm:text-4xl font-bold mb-2">Opus</h1>
+        <p className="text-white text-sm sm:text-base mb-6">
           On-device computer use, fully in the background.
         </p>
-        <form onSubmit={handleWaitlistSubmit} className="mt-4 space-y-3">
+        <form onSubmit={handleWaitlistSubmit} className="space-y-3">
           <input
             type="email"
             placeholder="user@tryop.us"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={isSubmitting}
-            className="w-full text-md p-3 border border-zinc-700 outline-none bg-zinc-900/80 text-white placeholder-zinc-500 transition-all focus:border-zinc-600 focus:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed app-region-no-drag"
+            className="w-full text-sm sm:text-md p-3 border border-zinc-700 outline-none bg-zinc-900/80 text-white placeholder-zinc-500 transition-all focus:border-zinc-600 focus:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed app-region-no-drag rounded"
           />
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full text-md p-3 border border-zinc-700 outline-none bg-zinc-900/80 text-white placeholder-zinc-500 transition-all focus:border-zinc-600 focus:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed app-region-no-drag hover:bg-zinc-800"
+            className="w-full text-sm sm:text-md p-3 bg-white text-black font-medium transition-all hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed app-region-no-drag rounded"
           >
             {isSubmitting ? "Joining..." : "Join Waitlist"}
           </button>
