@@ -64,6 +64,13 @@ const App = () => {
     timestamp: number;
   } | null>(null);
 
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<{
+    type: "success" | "error" | null;
+    message: string;
+  }>({ type: null, message: "" });
+
   const radius = 5;
 
   const isWithinRadius = (row: number, col: number) => {
@@ -96,6 +103,55 @@ const App = () => {
     setRipple({ row, col, timestamp: Date.now() });
     // Clear ripple after animation
     setTimeout(() => setRipple(null), 1000);
+  };
+
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!email.trim()) {
+      setSubmitStatus({
+        type: "error",
+        message: "Please enter your email address"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitStatus({ type: null, message: "" });
+
+    try {
+      const response = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: email.trim()
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSubmitStatus({
+          type: "success",
+          message: "Successfully joined the waitlist!"
+        });
+        setEmail("");
+      } else {
+        setSubmitStatus({
+          type: "error",
+          message: data.error || "Failed to join waitlist"
+        });
+      }
+    } catch (error) {
+      setSubmitStatus({
+        type: "error",
+        message: "Network error. Please try again."
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderAsciiWithHover = () => {
@@ -173,17 +229,34 @@ const App = () => {
         <p className="text-white">
           On-device computer use, fully in the background.
         </p>
-        <form className="mt-4">
+        <form onSubmit={handleWaitlistSubmit} className="mt-4 space-y-3">
           <input
+            type="email"
             placeholder="user@tryop.us"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={isSubmitting}
             className="w-full text-md p-3 border border-zinc-700 outline-none bg-zinc-900/80 text-white placeholder-zinc-500 transition-all focus:border-zinc-600 focus:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed app-region-no-drag"
           />
           <button
-            className="mt-2 w-full text-md p-3 border border-zinc-700 outline-none bg-zinc-900/80 text-white placeholder-zinc-500 transition-all focus:border-zinc-600 focus:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed app-region-no-drag"
             type="submit"
+            disabled={isSubmitting}
+            className="w-full text-md p-3 border border-zinc-700 outline-none bg-zinc-900/80 text-white placeholder-zinc-500 transition-all focus:border-zinc-600 focus:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed app-region-no-drag hover:bg-zinc-800"
           >
-            Join Waitlist
+            {isSubmitting ? "Joining..." : "Join Waitlist"}
           </button>
+
+          {submitStatus.type && (
+            <div
+              className={`text-sm p-2 rounded ${
+                submitStatus.type === "success"
+                  ? "bg-green-900/20 text-green-400 border border-green-700"
+                  : "bg-red-900/20 text-red-400 border border-red-700"
+              }`}
+            >
+              {submitStatus.message}
+            </div>
+          )}
         </form>
       </div>
     </div>
