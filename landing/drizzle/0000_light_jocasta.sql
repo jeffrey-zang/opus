@@ -1,7 +1,6 @@
-CREATE TABLE "waitlist" (
+CREATE TABLE IF NOT EXISTS "waitlist" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"email" text NOT NULL,
-	"name" text,
 	"ip_address" text,
 	"user_agent" text,
 	"is_active" boolean DEFAULT true,
@@ -10,5 +9,5 @@ CREATE TABLE "waitlist" (
 	CONSTRAINT "waitlist_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
-CREATE INDEX "email_idx" ON "waitlist" USING btree ("email");--> statement-breakpoint
-CREATE INDEX "created_at_idx" ON "waitlist" USING btree ("created_at");
+CREATE INDEX IF NOT EXISTS "email_idx" ON "waitlist" ("email");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "created_at_idx" ON "waitlist" ("created_at");

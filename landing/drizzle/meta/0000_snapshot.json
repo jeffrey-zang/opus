@@ -1,7 +1,7 @@
 {
-  "id": "dfdb8de6-30a3-41a6-8c31-cda4d5c358b3",
+  "id": "69630ef3-74d3-4263-bf63-a20e532beff5",
   "prevId": "00000000-0000-0000-0000-000000000000",
-  "version": "7",
+  "version": "6",
   "dialect": "postgresql",
   "tables": {
     "public.waitlist": {
@@ -20,12 +20,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "ip_address": {
           "name": "ip_address",
@@ -65,32 +59,16 @@
         "email_idx": {
           "name": "email_idx",
           "columns": [
-            {
-              "expression": "email",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "email"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         },
         "created_at_idx": {
           "name": "created_at_idx",
           "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "created_at"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         }
       },
       "foreignKeys": {},
@@ -103,18 +81,11 @@
             "email"
           ]
         }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      }
     }
   },
   "enums": {},
   "schemas": {},
-  "sequences": {},
-  "roles": {},
-  "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},
