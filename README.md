@@ -1,4 +1,4 @@
-<a href="https://tryop.us/" target='_blank' rel='noreferrer'>
+<a href="https://tryop.us/" target="_blank" rel="noreferrer">
 <img width="500" height="286.92" alt="banner" src="https://github.com/jeffrey-zang/opus/blob/master/assets/banner.svg" />
 </a>
 

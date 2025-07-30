@@ -1,0 +1,13 @@
+{
+  "version": "6",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1753894253806,
+      "tag": "0000_light_jocasta",
+      "breakpoints": true
+    }
+  ]
+}

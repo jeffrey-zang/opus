@@ -1,0 +1,52 @@
+name: Landing Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "landing/**"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "landing/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: "postgresql://test:test@localhost:5432/test_db"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: |
+          cd landing
+          bun install
+
+      - name: Run unit tests
+        if: false # temporarily disabled
+        run: |
+          cd landing
+          bun test
+
+      - name: Run tests with coverage
+        if: false # temporarily disabled
+        run: |
+          cd landing
+          bun run test:coverage
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: landing/coverage/lcov.info
+          flags: landing-tests
+          name: codecov-landing
+          fail_ci_if_error: false

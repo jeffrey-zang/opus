@@ -1,0 +1,80 @@
+name: Landing Integration Tests
+
+# Disabled for now - uncomment when you need real database tests
+# on:
+#   push:
+#     branches: [main, develop]
+#     paths:
+#       - "landing/**"
+#   pull_request:
+#     branches: [main, develop]
+#     paths:
+#       - "landing/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: landing/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd landing
+          npm ci
+
+      - name: Setup environment variables
+        run: |
+          cd landing
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db" > .env.test
+
+      - name: Run database migrations
+        run: |
+          cd landing
+          npm run db:push
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+
+      - name: Run integration tests
+        run: |
+          cd landing
+          npm test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+
+      - name: Run tests with coverage
+        run: |
+          cd landing
+          npm run test:coverage
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: landing/coverage/lcov.info
+          flags: landing-integration
+          name: codecov-landing-integration
+          fail_ci_if_error: false
