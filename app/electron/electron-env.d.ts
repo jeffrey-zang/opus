@@ -26,6 +26,9 @@ declare namespace NodeJS {
 interface ipcRenderer {
   sendMessage: (msg: string) => void;
   onReply: (cb: (data: string) => void) => void;
+  resetConversation: () => void;
+  changeApp: (appName: string) => void;
+  onAppChanged: (callback: (data: { appName: string }) => void) => void;
 }
 
 interface Window {
