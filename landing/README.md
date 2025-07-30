@@ -115,24 +115,26 @@ This project uses GitHub Actions for automated testing and quality assurance.
 
 ### GitHub Actions Workflows
 
-Two workflows are configured:
+Workflows are configured in the root `.github/workflows/` directory:
 
-1. **Unit Tests** (`.github/workflows/test-unit.yml`)
+1. **Landing Tests** (`landing-tests.yml`) - **ACTIVE**
 
-   - Runs on every push and pull request
+   - Runs only when `/landing` folder is modified
    - Executes unit tests with mocked dependencies
    - Generates coverage reports
    - Uploads coverage to Codecov
 
-2. **Integration Tests** (`.github/workflows/test.yml`)
+2. **Landing Integration Tests** (`landing-integration-tests.yml`) - **DISABLED**
+   - Currently disabled (commented out)
    - Includes PostgreSQL database service
    - Runs database migrations
    - Executes integration tests
-   - More comprehensive testing environment
+   - Enable when you need real database tests
 
 ### Workflow Triggers
 
-- **Push**: Runs on pushes to `main` and `develop` branches
+- **Path-based**: Only runs when files in `/landing/**` are modified
+- **Branches**: Runs on pushes to `main` and `develop` branches
 - **Pull Request**: Runs on PRs targeting `main` and `develop` branches
 
 ### Coverage Reports

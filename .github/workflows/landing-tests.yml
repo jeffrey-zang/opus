@@ -1,10 +1,14 @@
-name: Unit Tests
+name: Landing Tests
 
 on:
   push:
     branches: [main, develop]
+    paths:
+      - "landing/**"
   pull_request:
     branches: [main, develop]
+    paths:
+      - "landing/**"
 
 jobs:
   test:
@@ -40,6 +44,6 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           file: landing/coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
+          flags: landing-tests
+          name: codecov-landing
           fail_ci_if_error: false
