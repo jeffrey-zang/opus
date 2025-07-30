@@ -9,7 +9,10 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "react": "19.1.0",
@@ -35,6 +38,6 @@
     "jest-environment-jsdom": "^29.7.0",
     "ts-jest": "^29.1.2",
     "@testing-library/jest-dom": "^6.4.2",
-    "@testing-library/react": "^14.2.1"
+    "@testing-library/react": "^16.3.0"
   }
 }

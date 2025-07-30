@@ -108,3 +108,55 @@ describe("API Endpoint", () => {
   });
 });
 ```
+
+## Continuous Integration (CI/CD)
+
+This project uses GitHub Actions for automated testing and quality assurance.
+
+### GitHub Actions Workflows
+
+Two workflows are configured:
+
+1. **Unit Tests** (`.github/workflows/test-unit.yml`)
+
+   - Runs on every push and pull request
+   - Executes unit tests with mocked dependencies
+   - Generates coverage reports
+   - Uploads coverage to Codecov
+
+2. **Integration Tests** (`.github/workflows/test.yml`)
+   - Includes PostgreSQL database service
+   - Runs database migrations
+   - Executes integration tests
+   - More comprehensive testing environment
+
+### Workflow Triggers
+
+- **Push**: Runs on pushes to `main` and `develop` branches
+- **Pull Request**: Runs on PRs targeting `main` and `develop` branches
+
+### Coverage Reports
+
+Test coverage reports are automatically generated and uploaded to Codecov, providing:
+
+- Line coverage metrics
+- Branch coverage analysis
+- Coverage trends over time
+- PR coverage comments
+
+### Local Development
+
+To run the same tests locally that run in CI:
+
+```bash
+# Unit tests (no database required)
+npm test
+
+# Tests with coverage
+npm run test:coverage
+
+# Database operations
+npm run db:generate  # Generate migrations
+npm run db:push      # Push schema changes
+npm run db:migrate   # Run migrations
+```
