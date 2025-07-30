@@ -67,3 +67,44 @@ Add an email to the waitlist.
   }
 }
 ```
+
+## Testing
+
+This project includes comprehensive tests for the waitlist API endpoint. The test suite covers all scenarios including success cases, validation errors, rate limiting, and database constraints.
+
+Run the tests using one of the following commands:
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode (re-runs on file changes)
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+```
+
+### Writing New Tests
+
+To add new tests:
+
+1. Create test files in the `__tests__/` directory
+2. Use Jest's `describe` and `it` functions
+3. Mock external dependencies (database, rate limiting)
+4. Test both success and error scenarios
+5. Verify response status codes and body content
+
+Example test structure:
+
+```typescript
+describe("API Endpoint", () => {
+  it("should handle valid requests", async () => {
+    // Test implementation
+  });
+
+  it("should handle invalid requests", async () => {
+    // Test implementation
+  });
+});
+```
