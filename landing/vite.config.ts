@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
     outDir: "dist",
-    assetsDir: "assets",
+    assetsDir: ".",
     rollupOptions: {
       output: {
         manualChunks: undefined
