@@ -26,12 +26,12 @@ let win: BrowserWindow | null;
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "click.png"),
-    // width: 500,
-    // height: 56,
-    width: 500,
-    height: 74,
-    resizable: false,
-    trafficLightPosition: { x: -100, y: -100 },
+    width: 800,
+    height: 600,
+    minWidth: 600,
+    minHeight: 400,
+    resizable: true,
+    trafficLightPosition: { x: 16, y: 16 },
     alwaysOnTop: false,
     ...(process.platform === "darwin"
       ? {
@@ -91,7 +91,7 @@ app.whenReady().then(() => {
   if (!fs.existsSync(TMPDIR)) fs.mkdirSync(TMPDIR);
   new Notification({
     title: "Hello from Opus",
-    body: "Opus is ready! Type a prompt and run your first task.",
+    body: "Opus is ready! Start a conversation and I'll help you with tasks on your Mac.",
   }).show();
   createWindow();
 });
