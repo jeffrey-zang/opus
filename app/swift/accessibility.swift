@@ -3,6 +3,9 @@ import ApplicationServices
 import Cocoa
 import CoreFoundation
 
+// Dev-friendly script to fetch all clickable elements in an app (always uses the currently selected app)
+// Usage: swift accessibility.swift
+
 struct DebugDebouncer {
   static var hasPrintedAttributes = false
 }

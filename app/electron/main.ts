@@ -29,7 +29,7 @@ function createWindow() {
     // width: 500,
     // height: 56,
     width: 500,
-    height: 74,
+    height: 52,
     resizable: false,
     trafficLightPosition: { x: -100, y: -100 },
     alwaysOnTop: false,

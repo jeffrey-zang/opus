@@ -14,14 +14,11 @@ export async function performAction(
 ): Promise<ActionResult | ActionResult[]> {
   logWithElapsed("performAction", `Performing action: ${action}`);
 
-  // Split into commands: lines starting with =
   const commandRegex = /(^=\w+[ \n][^=]*)/gms;
   const matches = action.match(commandRegex);
   if (matches && matches.length > 1) {
     const results: ActionResult[] = [];
     for (const cmd of matches) {
-      // Recursively call performAction for each command
-      // Remove leading/trailing whitespace
       const res = await performAction(
         cmd.trim(),
         bundleId,

@@ -1,7 +1,9 @@
 #!/usr/bin/swift
 
-// script that takes a bundleId and the name of a window and moves it to Opus' display.
+// Script that takes a bundleId and the name of a window and moves it to Opus' display.
 // Returns the original window coordinates for moving back
+// Usage: swift moveToOpusDisplay.swift <pid> <windowName>
+
 import AppKit
 
 enum MyError: Error {

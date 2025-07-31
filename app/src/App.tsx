@@ -1,4 +1,12 @@
 import { useState, useEffect, useRef } from "react";
+import {
+  IconBrandSafari,
+  IconBulb,
+  IconCircleCheck,
+  IconKeyboard,
+  IconPointer,
+  IconSparkles,
+} from "@tabler/icons-react";
 
 const App = () => {
   const [prompt, setPrompt] = useState<string>("");
@@ -9,6 +17,11 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [currentStream, setCurrentStream] = useState<string>("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [currentApp, setCurrentApp] = useState<{
+    appName: string;
+    bundleId?: string;
+    status: string;
+  } | null>(null);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
   const inputRef = useRef<null | HTMLInputElement>(null);
 
@@ -25,6 +38,10 @@ const App = () => {
         setLoading(false);
         setIsStreaming(false);
         setCurrentStream("");
+
+        if (data.type === "complete") {
+          setIsStreaming(false);
+        }
       }
     );
 
@@ -50,90 +67,133 @@ const App = () => {
             setCurrentStream((prev) => prev + `\n✅ ${data.content}\n\n`);
             break;
           case "chunk_complete":
-            // Keep streaming active, just a completion marker
+            break;
+          case "complete":
+            setIsStreaming(false);
             break;
         }
+      }
+    );
+
+    window.ipcRenderer.on(
+      "app-info",
+      (_, data: { appName: string; bundleId?: string; status: string }) => {
+        setCurrentApp(data);
       }
     );
 
     return () => {
       window.ipcRenderer.removeAllListeners("reply");
       window.ipcRenderer.removeAllListeners("stream");
+      window.ipcRenderer.removeAllListeners("app-info");
     };
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, currentStream]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim()) return;
 
-    // Reset state
+    const currentPrompt = prompt;
+
     setMessages([]);
     setCurrentStream("");
     setLoading(false);
     setIsStreaming(true);
-
-    // Send message and update UI
-    inputRef.current?.blur();
-    window.ipcRenderer.sendMessage(prompt);
-    setShowPrompt(prompt);
+    setCurrentApp(null);
+    setShowPrompt(currentPrompt);
     setPrompt("");
+
+    inputRef.current?.blur();
+    window.ipcRenderer.sendMessage(currentPrompt);
+  };
+
+  const getIconForMessageType = (type: string) => {
+    switch (type) {
+      case "error":
+        return (
+          <IconCircleCheck size={20} stroke={1.5} className="text-red-500" />
+        );
+      case "complete":
+        return (
+          <IconCircleCheck size={20} stroke={1.5} className="text-green-500" />
+        );
+      case "action":
+        return <IconPointer size={20} stroke={1.5} className="text-blue-500" />;
+      default:
+        return <IconBulb size={20} stroke={1.5} className="text-yellow-500" />;
+    }
+  };
+
+  const getIconForTool = (toolName: string) => {
+    if (toolName?.toLowerCase().includes("safari")) {
+      return (
+        <IconBrandSafari size={20} stroke={1.5} className="text-neutral-500" />
+      );
+    }
+    if (
+      toolName?.toLowerCase().includes("key") ||
+      toolName?.toLowerCase().includes("type")
+    ) {
+      return (
+        <IconKeyboard size={20} stroke={1.5} className="text-neutral-500" />
+      );
+    }
+    if (toolName?.toLowerCase().includes("click")) {
+      return (
+        <IconPointer size={20} stroke={1.5} className="text-neutral-500" />
+      );
+    }
+    return <IconBulb size={20} stroke={1.5} className="text-neutral-500" />;
   };
 
   return (
-    <div className="h-screen w-screen bg-zinc-900">
-      <div className="flex flex-col h-full">
-        <div
-          className="app-region-drag w-full"
-          style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-        >
-          <form
-            onSubmit={handleSubmit}
-            className="flex p-3 bg-zinc-800 w-full app-region-no-drag"
-            style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-          >
-            <input
-              ref={inputRef}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="order sandblasters on amazon..."
-              disabled={isStreaming}
-              className="flex-1 text-md p-3 rounded-xl border border-zinc-700 outline-none bg-zinc-900/80 text-white placeholder-zinc-500 transition-all focus:border-zinc-600 focus:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed app-region-no-drag"
-            />
-            <button
-              type="submit"
-              disabled={prompt.length === 0 || isStreaming}
-              className="ml-3 text-md px-4 py-3 rounded-xl border-none bg-gradient-to-r from-blue-600 to-blue-500 text-white font-medium cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 disabled:from-zinc-700 disabled:to-zinc-700 transition-all hover:from-blue-500 hover:to-blue-400 app-region-no-drag"
-            >
-              {isStreaming ? "Thinking..." : "Send"}
-            </button>
-          </form>
+    <div className="h-screen w-screen flex flex-col bg-zinc-950">
+      {showPrompt && (
+        <div className="px-4 py-3 flex items-center gap-2 text-zinc-200 text-lg border-b border-zinc-800 bg-zinc-900/75 font-600">
+          <IconSparkles size={24} stroke={2} className="font-neutral-200" />
+          {showPrompt}
         </div>
-        {showPrompt && (
+      )}
+      {currentApp && (
+        <div className="px-4 py-2 flex items-center gap-2 text-zinc-200 text-base border-b border-zinc-800/50 bg-zinc-900/50">
           <div
-            className="px-6 py-2 bg-zinc-800/50 text-zinc-200 text-base border-b border-zinc-700/50 backdrop-blur-sm app-region-no-drag"
-            style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-              <span className="font-medium text-zinc-300">Task:</span>
-              <span className="text-zinc-100">{showPrompt}</span>
-            </div>
-          </div>
-        )}
-        <div
-          className={`flex-1 ${
-            messages.length !== 0 || isStreaming ? "px-4 pt-4" : ""
-          } overflow-y-scroll text-white text-md box-border app-region-no-drag`}
-          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-        >
+            className={`w-2 h-2 rounded-full ${
+              currentApp.status === "ready"
+                ? "bg-green-400"
+                : "bg-yellow-400 animate-pulse"
+            }`}
+          />
+          <span className="font-medium text-zinc-300">App:</span>
+          <span className="text-zinc-100">{currentApp.appName}</span>
+          {currentApp.status === "opening" && (
+            <span className="text-yellow-400 text-sm">Opening...</span>
+          )}
+          {currentApp.status === "ready" && (
+            <span className="text-green-400 text-sm">Ready</span>
+          )}
+        </div>
+      )}
+      {messages.length > 0 && (
+        <div className="flex-1 overflow-y-auto p-4 text-white text-md box-border">
           {loading && !isStreaming ? (
-            <div className="flex flex-col items-center justify-center h-full">
-              <div className="animate-pulse text-lg text-zinc-300">
-                Reasoning...
+            <div className="grid place-items-center h-full">
+              <div className="mb-3 p-3 rounded-lg flex flex-col gap-2 bg-zinc-900/75 border-[1px] border-zinc-800/50">
+                <div className="flex items-center gap-2">
+                  <IconBulb
+                    size={20}
+                    stroke={1.5}
+                    className="text-yellow-500"
+                  />
+                  <div className="whitespace-pre-wrap text-sm text-neutral-200">
+                    Reasoning...
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
@@ -141,59 +201,34 @@ const App = () => {
               {messages.map((msg, i) => (
                 <div
                   key={i}
-                  className={`mb-4 p-5 rounded-xl border backdrop-blur-sm ${
-                    msg.type === "error"
-                      ? "bg-red-950/30 border-red-800/50 text-red-100"
-                      : msg.type === "complete"
-                      ? "bg-green-950/30 border-green-800/50 text-green-100"
-                      : msg.type === "action"
-                      ? "bg-blue-950/30 border-blue-800/50 text-blue-100"
-                      : "bg-zinc-800/30 border-zinc-700/50 text-zinc-100"
-                  }`}
+                  className="mb-3 p-3 rounded-lg flex items-center gap-2 bg-zinc-900/75 border-[1px] border-zinc-800/50"
                 >
-                  <div className="flex items-center gap-2 mb-3">
-                    <div
-                      className={`w-2 h-2 rounded-full ${
-                        msg.type === "error"
-                          ? "bg-red-400"
-                          : msg.type === "complete"
-                          ? "bg-green-400"
-                          : msg.type === "action"
-                          ? "bg-blue-400"
-                          : "bg-zinc-400"
-                      }`}
-                    ></div>
-                    <span className="font-medium text-sm opacity-90">
-                      {msg.type.charAt(0).toUpperCase() + msg.type.slice(1)}
-                    </span>
-                  </div>
-                  <div className="whitespace-pre-wrap text-base leading-relaxed font-mono">
+                  {getIconForMessageType(msg.type)}
+                  <div className="whitespace-pre-wrap text-sm text-neutral-200">
                     {msg.message}
                   </div>
                 </div>
               ))}
 
               {(isStreaming || currentStream) && (
-                <div className="mb-4 p-6 rounded-xl bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 border border-zinc-700/50 backdrop-blur-sm">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          isStreaming
-                            ? "bg-green-400 animate-pulse"
-                            : "bg-zinc-500"
-                        }`}
-                      ></div>
-                      <span className="text-sm font-medium text-zinc-300">
-                        {isStreaming ? "Thinking..." : "Response"}
-                      </span>
-                    </div>
+                <div className="mb-3 p-3 rounded-lg flex flex-col gap-2 bg-zinc-900/75 border-[1px] border-zinc-800/50">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        isStreaming
+                          ? "bg-green-400 animate-pulse"
+                          : "bg-zinc-500"
+                      }`}
+                    />
+                    <span className="text-sm font-medium text-zinc-300">
+                      {isStreaming ? "Thinking..." : "Response"}
+                    </span>
                   </div>
                   <div className="relative">
-                    <div className="whitespace-pre-wrap text-base text-zinc-100 leading-relaxed font-mono">
+                    <div className="whitespace-pre-wrap text-sm text-neutral-200 leading-relaxed">
                       {currentStream}
                       {isStreaming && (
-                        <span className="inline-block w-0.5 h-5 bg-green-400 ml-1 animate-pulse"></span>
+                        <span className="inline-block w-0.5 h-4 bg-green-400 ml-1 animate-pulse"></span>
                       )}
                     </div>
                   </div>
@@ -203,7 +238,32 @@ const App = () => {
           )}
           <div ref={messagesEndRef} />
         </div>
-      </div>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        className="flex items-center bg-zinc-900/75 rounded-lg border-[1px] border-zinc-800/50"
+      >
+        <input
+          ref={inputRef}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="order sandblasters on amazon..."
+          disabled={isStreaming}
+          className="flex-1 text-md px-4 py-3 border-none outline-none text-white placeholder-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed"
+        />
+        <button
+          type="submit"
+          disabled={prompt.length === 0 || isStreaming}
+          className={`text-md w-8 h-8 mr-2 rounded-full font-bold transition-color duration-150 ${
+            prompt.length === 0 || isStreaming
+              ? "border-[1px] border-zinc-700 bg-zinc-800 text-zinc-200 opacity-50"
+              : "border-none bg-gray-300 hover:bg-gray-100 text-zinc-900"
+          }`}
+        >
+          ↑
+        </button>
+      </form>
     </div>
   );
 };
