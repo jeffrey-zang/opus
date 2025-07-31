@@ -194,8 +194,11 @@ Start your response with =Click to use this tool.
     if ("role" in item) {
       if (item.role === "user") {
         if (Array.isArray(item.content)) {
+          const textItem = item.content.find(
+            (c: any) => c.type === "input_text"
+          );
           const textContent =
-            item.content.find((c: any) => c.type === "input_text")?.text || "";
+            textItem && textItem.type === "input_text" ? textItem.text : "";
           const imageContent = item.content.find(
             (c: any) => c.type === "input_image"
           );
