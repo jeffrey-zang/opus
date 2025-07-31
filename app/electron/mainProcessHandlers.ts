@@ -67,9 +67,10 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
     }
     logWithElapsed("setupMainHandlers", "message event received");
     const history: AgentInputItem[] = [];
+    const mainLogFolder = createLogFolder(userPrompt);
     let appName;
     try {
-      appName = await getAppName(userPrompt);
+      appName = await getAppName(userPrompt, mainLogFolder);
       await execPromise(`open -ga "${appName}"`);
     } catch {
       logWithElapsed("setupMainHandlers", "Could not determine app");
@@ -114,7 +115,6 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
       });
       return;
     }
-    const mainLogFolder = createLogFolder(userPrompt);
     console.log("\n");
 
     let done = false;

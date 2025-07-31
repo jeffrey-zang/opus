@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  IconBrandSafari,
+  // IconBrandSafari,
   IconBulb,
   IconCircleCheck,
-  IconKeyboard,
+  // IconKeyboard,
   IconPointer,
   IconSparkles,
 } from "@tabler/icons-react";
@@ -130,27 +130,27 @@ const App = () => {
     }
   };
 
-  const getIconForTool = (toolName: string) => {
-    if (toolName?.toLowerCase().includes("safari")) {
-      return (
-        <IconBrandSafari size={20} stroke={1.5} className="text-neutral-500" />
-      );
-    }
-    if (
-      toolName?.toLowerCase().includes("key") ||
-      toolName?.toLowerCase().includes("type")
-    ) {
-      return (
-        <IconKeyboard size={20} stroke={1.5} className="text-neutral-500" />
-      );
-    }
-    if (toolName?.toLowerCase().includes("click")) {
-      return (
-        <IconPointer size={20} stroke={1.5} className="text-neutral-500" />
-      );
-    }
-    return <IconBulb size={20} stroke={1.5} className="text-neutral-500" />;
-  };
+  // const getIconForTool = (toolName: string) => {
+  //   if (toolName?.toLowerCase().includes("safari")) {
+  //     return (
+  //       <IconBrandSafari size={20} stroke={1.5} className="text-neutral-500" />
+  //     );
+  //   }
+  //   if (
+  //     toolName?.toLowerCase().includes("key") ||
+  //     toolName?.toLowerCase().includes("type")
+  //   ) {
+  //     return (
+  //       <IconKeyboard size={20} stroke={1.5} className="text-neutral-500" />
+  //     );
+  //   }
+  //   if (toolName?.toLowerCase().includes("click")) {
+  //     return (
+  //       <IconPointer size={20} stroke={1.5} className="text-neutral-500" />
+  //     );
+  //   }
+  //   return <IconBulb size={20} stroke={1.5} className="text-neutral-500" />;
+  // };
 
   return (
     <div className="h-screen w-screen flex flex-col bg-zinc-950">
