@@ -118,6 +118,18 @@ export async function performAction(
                   res.element.AXDescription !== "" && res.element.AXDescription
                     ? ` (desc: ${res.element.AXDescription})`
                     : ""
+                }` +
+                `${
+                  res.element.AXRoleDescription !== "" &&
+                  res.element.AXRoleDescription
+                    ? ` (roleDesc: ${res.element.AXRoleDescription})`
+                    : ""
+                }` +
+                `${
+                  res.element.AXPlaceholderValue !== "" &&
+                  res.element.AXPlaceholderValue
+                    ? ` (placeholder: ${res.element.AXPlaceholderValue})`
+                    : ""
                 }`
               : ""),
           id: res.id,

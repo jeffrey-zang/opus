@@ -8,7 +8,7 @@ import getApplescriptCommands from "../utils/getApplescriptCommands";
 
 const openai = new OpenAI();
 
-export async function* runActionAgentStreaming(
+export async function runActionAgent(
   appName: string,
   userPrompt: string,
   clickableElements: Element[],
@@ -16,7 +16,7 @@ export async function* runActionAgentStreaming(
   screenshotBase64?: string,
   stepFolder?: string,
   onToolCall?: (toolName: string, args: any) => Promise<string>
-) {
+): Promise<string> {
   logWithElapsed("runActionAgent", `Running action agent for app: ${appName}`);
   let parsedClickableElements = "";
   for (let i = 0; i < clickableElements.length; i++) {
@@ -29,11 +29,22 @@ export async function* runActionAgentStreaming(
     }
     parsedClickableElements +=
       `${element.id} ${roleOrSubrole}${
-        element.AXTitle ? `${element.AXTitle.trim()} ` : ""
-      }${element.AXValue ? `${element.AXValue.trim()} ` : ""}${
-        element.AXHelp ? `${element.AXHelp.trim()} ` : ""
-      }${element.AXDescription ? `${element.AXDescription.trim()} ` : ""}` +
-      "\n";
+        element.AXTitle ? `, title:"${element.AXTitle.trim()}" ` : ""
+      }${element.AXValue ? `, value:"${element.AXValue.trim()}" ` : ""}${
+        element.AXHelp ? `, help:"${element.AXHelp.trim()}" ` : ""
+      }${
+        element.AXDescription
+          ? `, description:"${element.AXDescription.trim()}" `
+          : ""
+      }${
+        element.AXRoleDescription
+          ? `, roleDesc:"${element.AXRoleDescription.trim()}" `
+          : ""
+      }${
+        element.AXPlaceholderValue
+          ? `, placeholder:"${element.AXPlaceholderValue.trim()}" `
+          : ""
+      }` + "\n";
   }
 
   const contentText =
@@ -90,7 +101,7 @@ Do not delete a user's work. For example, open a new tab in a browser, instead o
 
 You may notice that you are given a lot of context for lower priority tools. For example, a list of UI elements for the Click tool. You **may ignore** these completely, if a higher priority tool can perform an action equally well or better. The amount of context given for the lower priority tools are simply due to their nature. It does not mean you should prioritize them more. You will receive this context regardless of whether it is useful for the task. It is up to you to filter it, if needed. For example, if you want to open a new tab in a browser, the Applescript tool is preferred, over using the Key and Click.
 
-If the screenshot, along with previous commands run, indicate that the task has been completed successfully, simply reply with a very short message (a few words) stating that the task has been finished, appending the word STOP in all caps at the end. For example: "You are already registered STOP". Be sure that this ending message is aware of the starting one (ie. if the starting request is "Open Safari", have it be "Safari is opened! STOP").
+If the screenshot, along with previous commands run, indicate that the task has been completed successfully, simply reply with a very short message (a few words) stating that the task has been finished, appending the word STOP in all caps at the end. For example: "You are already registered STOP". Be sure that this ending message is aware of the starting one (ie. if the starting request is "Open Safari", have it be "Safari is opened! STOP"). Make sure to stop immediately once the task has been completed.
 </specifications>
 
 Below are the tools you have access to. They are roughly in the order you should prioritize them, however, use the right tool for the job. If multiple tools can accomplish the same task, use the tool that comes first in the list. It is more reliable. That being said, use the best matching tool first. Don't try to use Applescript to handle key events, for example. Use the Key tool instead. If you have tried to use the same tool many times, and it doesn't work, switch tools. If it takes fewer steps to use any tool, use that one. To use a tool, simply start the first line with \`=toolname\`, then a new line with whatever the tool expects. For example, to use the Applescript tool, your response should look like
@@ -236,70 +247,36 @@ Start your response with =Click to use this tool.
     }
   }
 
-  const stream = await openai.chat.completions.create({
-    model: "gpt-4.1-mini",
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4.1",
     messages: messages,
-    stream: true,
     temperature: 0.0,
   });
 
-  let accumulatedText = "";
-  let isToolCall = false;
-  let toolName = "";
-  let toolArgs = "";
+  const response = completion.choices[0]?.message?.content || "";
 
-  for await (const chunk of stream) {
-    const delta = chunk.choices[0]?.delta;
-    if (!delta?.content) continue;
+  if (response.includes("=") && response.includes("\n") && onToolCall) {
+    const lines = response.split("\n");
+    let toolName = "";
+    let toolArgs = "";
 
-    const content = delta.content;
-
-    const tempAccumulated = accumulatedText + content;
-    if (tempAccumulated.includes("=") && !isToolCall) {
-      const toolMatch = tempAccumulated.match(/=([A-Za-z]+)/);
-      if (toolMatch) {
-        const beforeTool = tempAccumulated.substring(0, toolMatch.index);
-        const remainingText = beforeTool.substring(accumulatedText.length);
-        if (remainingText) {
-          yield { type: "text", content: remainingText };
-        }
-
-        isToolCall = true;
-        toolName = toolMatch[1];
-        yield { type: "tool_start", toolName };
-
-        toolArgs = tempAccumulated.substring(
-          toolMatch.index! + toolMatch[0].length
-        );
-        if (toolArgs) {
-          yield { type: "tool_args", content: toolArgs };
-        }
-        accumulatedText = beforeTool;
-        continue;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.startsWith("=")) {
+        toolName = line.substring(1);
+        toolArgs = lines
+          .slice(i + 1)
+          .join("\n")
+          .trim();
+        break;
       }
     }
 
-    accumulatedText += content;
-
-    if (isToolCall) {
-      if (!toolArgs.includes(content)) {
-        toolArgs += content;
-        yield { type: "tool_args", content };
-      }
-    } else {
-      yield { type: "text", content };
+    if (toolName && toolArgs) {
+      const result = await onToolCall(toolName, toolArgs);
+      return response + `\n\nTool Result:\n${result}`;
     }
   }
 
-  if (isToolCall && onToolCall) {
-    yield { type: "tool_execute", toolName };
-    const result = await onToolCall(toolName, toolArgs.trim());
-    yield { type: "tool_result", content: result };
-
-    const fullResponse =
-      accumulatedText.trim() + `\n=${toolName}\n${toolArgs.trim()}`;
-    return fullResponse;
-  }
-
-  return accumulatedText.trim();
+  return response;
 }

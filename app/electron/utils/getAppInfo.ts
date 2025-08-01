@@ -58,7 +58,7 @@ export async function getAppName(userPrompt: string, logFolder?: string) {
     ];
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1",
       messages,
       temperature: 0.0,
     });

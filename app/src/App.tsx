@@ -15,8 +15,6 @@ const App = () => {
     []
   );
   const [loading, setLoading] = useState(false);
-  const [currentStream, setCurrentStream] = useState<string>("");
-  const [isStreaming, setIsStreaming] = useState(false);
   const [currentApp, setCurrentApp] = useState<{
     appName: string;
     bundleId?: string;
@@ -36,42 +34,6 @@ const App = () => {
           return exists ? prev : [...prev, data];
         });
         setLoading(false);
-        setIsStreaming(false);
-        setCurrentStream("");
-
-        if (data.type === "complete") {
-          setIsStreaming(false);
-        }
-      }
-    );
-
-    window.ipcRenderer.on(
-      "stream",
-      (_, data: { type: string; content?: string; toolName?: string }) => {
-        setIsStreaming(true);
-        setLoading(false);
-        switch (data.type) {
-          case "text":
-            setCurrentStream((prev) => prev + data.content);
-            break;
-          case "tool_start":
-            setCurrentStream((prev) => prev + `\n\n🔧 \`${data.toolName}\`\n`);
-            break;
-          case "tool_args":
-            setCurrentStream((prev) => prev + data.content);
-            break;
-          case "tool_execute":
-            setCurrentStream((prev) => prev + "\n⚡ *Executing...*");
-            break;
-          case "tool_result":
-            setCurrentStream((prev) => prev + `\n✅ ${data.content}\n\n`);
-            break;
-          case "chunk_complete":
-            break;
-          case "complete":
-            setIsStreaming(false);
-            break;
-        }
       }
     );
 
@@ -84,7 +46,6 @@ const App = () => {
 
     return () => {
       window.ipcRenderer.removeAllListeners("reply");
-      window.ipcRenderer.removeAllListeners("stream");
       window.ipcRenderer.removeAllListeners("app-info");
     };
   }, []);
@@ -93,7 +54,7 @@ const App = () => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, currentStream]);
+  }, [messages]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,9 +63,7 @@ const App = () => {
     const currentPrompt = prompt;
 
     setMessages([]);
-    setCurrentStream("");
-    setLoading(false);
-    setIsStreaming(true);
+    setLoading(true);
     setCurrentApp(null);
     setShowPrompt(currentPrompt);
     setPrompt("");
@@ -181,7 +140,7 @@ const App = () => {
       )}
       {messages.length > 0 && (
         <div className="flex-1 overflow-y-auto p-4 text-white text-md box-border">
-          {loading && !isStreaming ? (
+          {loading ? (
             <div className="grid place-items-center h-full">
               <div className="mb-3 p-3 rounded-lg flex flex-col gap-2 bg-zinc-900/75 border-[1px] border-zinc-800/50">
                 <div className="flex items-center gap-2">
@@ -209,31 +168,6 @@ const App = () => {
                   </div>
                 </div>
               ))}
-
-              {(isStreaming || currentStream) && (
-                <div className="mb-3 p-3 rounded-lg flex flex-col gap-2 bg-zinc-900/75 border-[1px] border-zinc-800/50">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`w-2 h-2 rounded-full ${
-                        isStreaming
-                          ? "bg-green-400 animate-pulse"
-                          : "bg-zinc-500"
-                      }`}
-                    />
-                    <span className="text-sm font-medium text-zinc-300">
-                      {isStreaming ? "Thinking..." : "Response"}
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <div className="whitespace-pre-wrap text-sm text-neutral-200 leading-relaxed">
-                      {currentStream}
-                      {isStreaming && (
-                        <span className="inline-block w-0.5 h-4 bg-green-400 ml-1 animate-pulse"></span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
             </>
           )}
           <div ref={messagesEndRef} />
@@ -249,14 +183,14 @@ const App = () => {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="order sandblasters on amazon..."
-          disabled={isStreaming}
+          disabled={loading}
           className="flex-1 text-md px-4 py-3 border-none outline-none text-white placeholder-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed"
         />
         <button
           type="submit"
-          disabled={prompt.length === 0 || isStreaming}
+          disabled={prompt.length === 0 || loading}
           className={`text-md w-8 h-8 mr-2 rounded-full font-bold transition-color duration-150 ${
-            prompt.length === 0 || isStreaming
+            prompt.length === 0 || loading
               ? "border-[1px] border-zinc-700 bg-zinc-800 text-zinc-200 opacity-50"
               : "border-none bg-gray-300 hover:bg-gray-100 text-zinc-900"
           }`}
