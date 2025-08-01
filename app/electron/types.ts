@@ -19,6 +19,8 @@ export interface Element {
   AXURL?: string;
   AXDescription?: string;
   AXSubrole?: string;
+  AXRoleDescription?: string;
+  AXPlaceholderValue?: string;
 }
 
 export type ActionResult =

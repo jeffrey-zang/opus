@@ -27,6 +27,11 @@ export default async function click(
       "performAction",
       `Clicked element info: ${JSON.stringify(element)}`
     );
+  } else {
+    logWithElapsed(
+      "performAction",
+      `Warning: Could not find element with id ${id} in clickable elements list`
+    );
   }
   try {
     await execPromise(`swift swift/click.swift ${bundleId} ${id}`);
@@ -35,6 +40,15 @@ export default async function click(
   } catch (error) {
     const { stderr } = error as ExecException;
     logWithElapsed("performAction", `Error clicking element ${id}: ${stderr}`);
-    return { type: "click", id, element: element || null, error: stderr };
+    const errorMessage = element
+      ? `Failed to click element with ID ${id} (${
+          element.AXRole || "unknown role"
+        }${element.AXTitle ? `: ${element.AXTitle}` : ""}${
+          element.AXRoleDescription ? ` (${element.AXRoleDescription})` : ""
+        }${
+          element.AXPlaceholderValue ? ` [${element.AXPlaceholderValue}]` : ""
+        }): ${stderr}`
+      : `Failed to click element with ID ${id} (element not found): ${stderr}`;
+    return { type: "click", id, element: element || null, error: errorMessage };
   }
 }

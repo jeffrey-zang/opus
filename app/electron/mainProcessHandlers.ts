@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { getAppName, getBundleId } from "./utils/getAppInfo";
 import { getClickableElements } from "./utils/getClickableElements";
-import { runActionAgentStreaming } from "./ai/runAgents";
+import { runActionAgent } from "./ai/runAgents";
 import { takeAndSaveScreenshots } from "./utils/screenshots";
 import { execPromise, logWithElapsed } from "./utils/utils";
 import { performAction } from "./performAction";
@@ -31,6 +31,20 @@ function createLogFolder(userPrompt: string) {
   return mainLogFolder;
 }
 
+function saveRawResponse(stepFolder: string, rawResponse: string) {
+  const timestamp = Date.now().toString();
+  const logFilePath = path.join(stepFolder, `llm-response-${timestamp}.txt`);
+  try {
+    fs.writeFileSync(logFilePath, rawResponse, "utf8");
+    logWithElapsed(
+      "saveRawResponse",
+      `Saved raw LLM response to: ${logFilePath}`
+    );
+  } catch (error) {
+    logWithElapsed("saveRawResponse", `Failed to save raw response: ${error}`);
+  }
+}
+
 export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
   let firstPromptReceived = false;
   ipcMain.on("resize", async (_, w, h) => {
@@ -53,9 +67,10 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
     }
     logWithElapsed("setupMainHandlers", "message event received");
     const history: AgentInputItem[] = [];
+    const mainLogFolder = createLogFolder(userPrompt);
     let appName;
     try {
-      appName = await getAppName(userPrompt);
+      appName = await getAppName(userPrompt, mainLogFolder);
       await execPromise(`open -ga "${appName}"`);
     } catch {
       logWithElapsed("setupMainHandlers", "Could not determine app");
@@ -74,10 +89,21 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
       });
       return;
     }
+
+    event.sender.send("app-info", {
+      appName: appName,
+      status: "opening",
+    });
     let bundleId;
     try {
       bundleId = await getBundleId(appName);
       logWithElapsed("setupMainHandlers", `Got bundleId: ${bundleId}`);
+
+      event.sender.send("app-info", {
+        appName: appName,
+        bundleId: bundleId,
+        status: "ready",
+      });
     } catch {
       logWithElapsed(
         "setupMainHandlers",
@@ -89,7 +115,6 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
       });
       return;
     }
-    const mainLogFolder = createLogFolder(userPrompt);
     console.log("\n");
 
     let done = false;
@@ -134,8 +159,9 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
 
       let action = "";
       let hasToolCall = false;
+      let rawResponse = "";
 
-      const streamGenerator = runActionAgentStreaming(
+      const response = await runActionAgent(
         appName,
         userPrompt,
         clickableElements,
@@ -143,88 +169,190 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         screenshotBase64,
         stepFolder,
         async (toolName: string, args: string) => {
-          // Execute tool call
           const actionResult = await performAction(
             `=${toolName}\n${args}`,
             bundleId,
             clickableElements,
             event
           );
-          
+
           let resultText = "";
           if (Array.isArray(actionResult)) {
-            // Handle array of results
             const firstResult = actionResult[0];
-            if (firstResult && "type" in firstResult && firstResult.type === "unknown tool") {
-              resultText = "Error: unknown tool. Is the tool name separated from the arguments with a new line?";
-            } else if (firstResult && "error" in firstResult && firstResult.error) {
-              resultText = `Error:\n${firstResult.error}`;
-            } else if (firstResult && "stdout" in firstResult && firstResult.stdout) {
+            if (
+              firstResult &&
+              "type" in firstResult &&
+              firstResult.type === "unknown tool"
+            ) {
+              resultText =
+                "Error: unknown tool. Is the tool name separated from the arguments with a new line?";
+            } else if (
+              firstResult &&
+              "error" in firstResult &&
+              firstResult.error
+            ) {
+              if (firstResult.type === "click") {
+                resultText = firstResult.error;
+              } else {
+                resultText = `Error:\n${firstResult.error}`;
+              }
+            } else if (
+              firstResult &&
+              "stdout" in firstResult &&
+              firstResult.stdout
+            ) {
               resultText = `Success. Stdout:\n${firstResult.stdout}`;
+            } else if (
+              firstResult &&
+              "type" in firstResult &&
+              firstResult.type === "click" &&
+              firstResult.element
+            ) {
+              const element = firstResult.element;
+              resultText = `Successfully clicked element with ID ${firstResult.id}`;
+              if (element.AXRole) resultText += `\nRole: ${element.AXRole}`;
+              if (element.AXTitle) resultText += `\nTitle: ${element.AXTitle}`;
+              if (element.AXValue) resultText += `\nValue: ${element.AXValue}`;
+              if (element.AXHelp) resultText += `\nHelp: ${element.AXHelp}`;
+              if (element.AXDescription)
+                resultText += `\nDescription: ${element.AXDescription}`;
+              if (element.AXSubrole)
+                resultText += `\nSubrole: ${element.AXSubrole}`;
+              if (element.AXRoleDescription)
+                resultText += `\nRole Description: ${element.AXRoleDescription}`;
+              if (element.AXPlaceholderValue)
+                resultText += `\nPlaceholder: ${element.AXPlaceholderValue}`;
+            } else if (
+              firstResult &&
+              "type" in firstResult &&
+              firstResult.type === "key"
+            ) {
+              resultText = `Successfully pressed key: ${firstResult.keyString}`;
+            } else if (
+              firstResult &&
+              "type" in firstResult &&
+              firstResult.type === "applescript"
+            ) {
+              if (firstResult.error) {
+                resultText = `AppleScript error:\n${firstResult.error}`;
+              } else {
+                resultText = `Successfully executed AppleScript`;
+                if (firstResult.stdout) {
+                  resultText += `\nOutput: ${firstResult.stdout}`;
+                }
+              }
+            } else if (
+              firstResult &&
+              "type" in firstResult &&
+              firstResult.type === "bash"
+            ) {
+              if (firstResult.error) {
+                resultText = `Bash script error:\n${firstResult.error}`;
+              } else {
+                resultText = `Successfully executed bash script`;
+                if (firstResult.stdout) {
+                  resultText += `\nOutput: ${firstResult.stdout}`;
+                }
+              }
+            } else if (
+              firstResult &&
+              "type" in firstResult &&
+              firstResult.type === "uri"
+            ) {
+              if (firstResult.error) {
+                resultText = `Error opening URI:\n${firstResult.error}`;
+              } else {
+                resultText = `Successfully opened URI`;
+              }
             } else {
               resultText = "Success";
             }
           } else {
-            // Handle single result
-            if ("type" in actionResult && actionResult.type === "unknown tool") {
-              resultText = "Error: unknown tool. Is the tool name separated from the arguments with a new line?";
+            if (
+              "type" in actionResult &&
+              actionResult.type === "unknown tool"
+            ) {
+              resultText =
+                "Error: unknown tool. Is the tool name separated from the arguments with a new line?";
             } else if ("error" in actionResult && actionResult.error) {
-              resultText = `Error:\n${actionResult.error}`;
+              if (actionResult.type === "click") {
+                resultText = actionResult.error;
+              } else {
+                resultText = `Error:\n${actionResult.error}`;
+              }
             } else if ("stdout" in actionResult && actionResult.stdout) {
               resultText = `Success. Stdout:\n${actionResult.stdout}`;
+            } else if (
+              "type" in actionResult &&
+              actionResult.type === "click" &&
+              actionResult.element
+            ) {
+              const element = actionResult.element;
+              resultText = `Successfully clicked element with ID ${actionResult.id}`;
+              if (element.AXRole) resultText += `\nRole: ${element.AXRole}`;
+              if (element.AXTitle) resultText += `\nTitle: ${element.AXTitle}`;
+              if (element.AXValue) resultText += `\nValue: ${element.AXValue}`;
+              if (element.AXHelp) resultText += `\nHelp: ${element.AXHelp}`;
+              if (element.AXDescription)
+                resultText += `\nDescription: ${element.AXDescription}`;
+              if (element.AXSubrole)
+                resultText += `\nSubrole: ${element.AXSubrole}`;
+              if (element.AXRoleDescription)
+                resultText += `\nRole Description: ${element.AXRoleDescription}`;
+              if (element.AXPlaceholderValue)
+                resultText += `\nPlaceholder: ${element.AXPlaceholderValue}`;
+            } else if ("type" in actionResult && actionResult.type === "key") {
+              resultText = `Successfully pressed key: ${actionResult.keyString}`;
+            } else if (
+              "type" in actionResult &&
+              actionResult.type === "applescript"
+            ) {
+              if (actionResult.error) {
+                resultText = `AppleScript error:\n${actionResult.error}`;
+              } else {
+                resultText = `Successfully executed AppleScript`;
+                if (actionResult.stdout) {
+                  resultText += `\nOutput: ${actionResult.stdout}`;
+                }
+              }
+            } else if ("type" in actionResult && actionResult.type === "bash") {
+              if (actionResult.error) {
+                resultText = `Bash script error:\n${actionResult.error}`;
+              } else {
+                resultText = `Successfully executed bash script`;
+                if (actionResult.stdout) {
+                  resultText += `\nOutput: ${actionResult.stdout}`;
+                }
+              }
+            } else if ("type" in actionResult && actionResult.type === "uri") {
+              if (actionResult.error) {
+                resultText = `Error opening URI:\n${actionResult.error}`;
+              } else {
+                resultText = `Successfully opened URI`;
+              }
             } else {
               resultText = "Success";
             }
           }
-          
+
           return resultText;
         }
       );
 
-      // Stream tokens and handle tool calls
-      for await (const chunk of streamGenerator) {
-        switch (chunk.type) {
-          case "text":
-            event.sender.send("stream", {
-              type: "text",
-              content: chunk.content
-            });
-            action += chunk.content;
-            break;
-          case "tool_start":
-            event.sender.send("stream", {
-              type: "tool_start",
-              toolName: chunk.toolName
-            });
+      // Process the complete response
+      action = response;
+      rawResponse = response;
+      saveRawResponse(stepFolder, rawResponse);
+
+      // Check if response contains tool calls
+      if (response.includes("=") && response.includes("\n")) {
+        const lines = response.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("=")) {
             hasToolCall = true;
             break;
-          case "tool_args":
-            event.sender.send("stream", {
-              type: "tool_args",
-              content: chunk.content
-            });
-            break;
-          case "tool_execute":
-            event.sender.send("stream", {
-              type: "tool_execute",
-              toolName: chunk.toolName
-            });
-            break;
-          case "tool_result":
-            event.sender.send("stream", {
-              type: "tool_result",
-              content: chunk.content
-            });
-            break;
+          }
         }
-      }
-      
-      // Send a completion signal to frontend
-      if (!hasToolCall && action.trim()) {
-        // This was just text, mark streaming as complete for this chunk
-        setTimeout(() => {
-          event.sender.send("stream", { type: "chunk_complete" });
-        }, 50);
       }
 
       logWithElapsed("setupMainHandlers", "actionAgent run complete");
@@ -236,7 +364,7 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         });
         return;
       }
-      
+
       if (action === "done" || action === "(done)" || action.endsWith("STOP")) {
         logWithElapsed("setupMainHandlers", "Task complete");
         event.sender.send("reply", {
@@ -251,7 +379,6 @@ export function setupMainHandlers({ win }: { win: BrowserWindow | null }) {
         break;
       }
 
-      // Add to history after each interaction
       if (action.trim() || hasToolCall) {
         history.push({
           role: "assistant",

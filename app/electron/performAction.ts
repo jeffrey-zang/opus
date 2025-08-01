@@ -14,14 +14,11 @@ export async function performAction(
 ): Promise<ActionResult | ActionResult[]> {
   logWithElapsed("performAction", `Performing action: ${action}`);
 
-  // Split into commands: lines starting with =
   const commandRegex = /(^=\w+[ \n][^=]*)/gms;
   const matches = action.match(commandRegex);
   if (matches && matches.length > 1) {
     const results: ActionResult[] = [];
     for (const cmd of matches) {
-      // Recursively call performAction for each command
-      // Remove leading/trailing whitespace
       const res = await performAction(
         cmd.trim(),
         bundleId,
@@ -120,6 +117,18 @@ export async function performAction(
                 `${
                   res.element.AXDescription !== "" && res.element.AXDescription
                     ? ` (desc: ${res.element.AXDescription})`
+                    : ""
+                }` +
+                `${
+                  res.element.AXRoleDescription !== "" &&
+                  res.element.AXRoleDescription
+                    ? ` (roleDesc: ${res.element.AXRoleDescription})`
+                    : ""
+                }` +
+                `${
+                  res.element.AXPlaceholderValue !== "" &&
+                  res.element.AXPlaceholderValue
+                    ? ` (placeholder: ${res.element.AXPlaceholderValue})`
                     : ""
                 }`
               : ""),
