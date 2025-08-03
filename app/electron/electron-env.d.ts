@@ -25,6 +25,7 @@ declare namespace NodeJS {
 
 interface ipcRenderer {
   sendMessage: (msg: string) => void;
+  sendStop: () => void;
   onReply: (cb: (data: string) => void) => void;
   on: (channel: string, callback: (event: any, ...args: any[]) => void) => void;
   removeAllListeners: (channel: string) => void;

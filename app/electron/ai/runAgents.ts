@@ -1,7 +1,5 @@
 import { AgentInputItem } from "@openai/agents";
 import OpenAI from "openai";
-import * as fs from "node:fs";
-import * as path from "node:path";
 import { Element } from "../types";
 import { logWithElapsed } from "../utils/utils";
 import getApplescriptCommands from "../utils/getApplescriptCommands";
@@ -14,7 +12,6 @@ export async function runActionAgent(
   clickableElements: Element[],
   history: AgentInputItem[],
   screenshotBase64?: string,
-  stepFolder?: string,
   onToolCall?: (toolName: string, args: any) => Promise<string>
 ): Promise<string> {
   logWithElapsed("runActionAgent", `Running action agent for app: ${appName}`);
@@ -79,15 +76,6 @@ export async function runActionAgent(
       ],
     },
   ];
-
-  if (stepFolder) {
-    fs.writeFileSync(path.join(stepFolder, "agent-prompt.txt"), contentText);
-    fs.writeFileSync(
-      path.join(stepFolder, "fullPrompt.json"),
-      JSON.stringify(agentInput)
-    );
-    logWithElapsed("runActionAgent", `Saved agent-prompt.txt`);
-  }
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     {
@@ -247,13 +235,31 @@ Start your response with =Click to use this tool.
     }
   }
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4.1",
-    messages: messages,
-    temperature: 0.0,
-  });
+  let response = "";
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1",
+      messages: messages,
+      temperature: 0.0,
+    });
 
-  const response = completion.choices[0]?.message?.content || "";
+    response = completion.choices[0]?.message?.content || "";
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    if (
+      errorMessage.includes("400") &&
+      errorMessage.includes("unsupported image")
+    ) {
+      throw new Error(
+        "Screenshot error: The image format is not supported. This might be due to screen recording permissions. Please enable screen recording for Opus in System Settings → Privacy & Security → Screen Recording."
+      );
+    } else if (errorMessage.includes("400")) {
+      throw new Error(`OpenAI API error: ${errorMessage}`);
+    } else {
+      throw new Error(`Error communicating with OpenAI: ${errorMessage}`);
+    }
+  }
 
   if (response.includes("=") && response.includes("\n") && onToolCall) {
     const lines = response.split("\n");

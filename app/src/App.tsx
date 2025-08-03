@@ -6,6 +6,7 @@ import {
   // IconKeyboard,
   IconPointer,
   IconSparkles,
+  IconX,
 } from "@tabler/icons-react";
 
 const App = () => {
@@ -44,9 +45,21 @@ const App = () => {
       }
     );
 
+    (window.ipcRenderer as any).onAccessibilityEnabled(() => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "complete",
+          message:
+            "✅ Accessibility permissions enabled! You can now use Opus to control your apps.",
+        },
+      ]);
+    });
+
     return () => {
       window.ipcRenderer.removeAllListeners("reply");
       window.ipcRenderer.removeAllListeners("app-info");
+      (window.ipcRenderer as any).removeAllListeners("accessibility-enabled");
     };
   }, []);
 
@@ -72,6 +85,21 @@ const App = () => {
     window.ipcRenderer.sendMessage(currentPrompt);
   };
 
+  const handleStop = () => {
+    setLoading(false);
+    setCurrentApp(null);
+    setShowPrompt("");
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: "error",
+        message: "Operation stopped by user.",
+      },
+    ]);
+    // Send stop signal to main process
+    window.ipcRenderer.sendStop();
+  };
+
   const getIconForMessageType = (type: string) => {
     switch (type) {
       case "error":
@@ -87,6 +115,21 @@ const App = () => {
       default:
         return <IconBulb size={20} stroke={1.5} className="text-yellow-500" />;
     }
+  };
+
+  const isAccessibilityError = (message: string) => {
+    return (
+      message.toLowerCase().includes("accessibility") ||
+      message.toLowerCase().includes("permission")
+    );
+  };
+
+  const isScreenshotError = (message: string) => {
+    return (
+      message.toLowerCase().includes("unsupported image") ||
+      message.toLowerCase().includes("400") ||
+      message.toLowerCase().includes("screenshot")
+    );
   };
 
   // const getIconForTool = (toolName: string) => {
@@ -114,9 +157,20 @@ const App = () => {
   return (
     <div className="h-screen w-screen flex flex-col bg-zinc-950">
       {showPrompt && (
-        <div className="px-4 py-3 flex items-center gap-2 text-zinc-200 text-lg border-b border-zinc-800 bg-zinc-900/75 font-600">
-          <IconSparkles size={24} stroke={2} className="font-neutral-200" />
-          {showPrompt}
+        <div className="px-4 py-3 flex items-center justify-between text-zinc-200 text-lg border-b border-zinc-800 bg-zinc-900/75 font-600">
+          <div className="flex items-center gap-2">
+            <IconSparkles size={24} stroke={2} className="font-neutral-200" />
+            {showPrompt}
+          </div>
+          {loading && (
+            <button
+              onClick={handleStop}
+              className="flex items-center gap-2 px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
+            >
+              <IconX size={16} />
+              Stop
+            </button>
+          )}
         </div>
       )}
       {currentApp && (
@@ -160,11 +214,30 @@ const App = () => {
               {messages.map((msg, i) => (
                 <div
                   key={i}
-                  className="mb-3 p-3 rounded-lg flex items-center gap-2 bg-zinc-900/75 border-[1px] border-zinc-800/50"
+                  className={`mb-3 p-3 rounded-lg flex items-center gap-2 border-[1px] ${
+                    isAccessibilityError(msg.message)
+                      ? "bg-red-900/25 border-red-800/50"
+                      : isScreenshotError(msg.message)
+                      ? "bg-orange-900/25 border-orange-800/50"
+                      : "bg-zinc-900/75 border-zinc-800/50"
+                  }`}
                 >
                   {getIconForMessageType(msg.type)}
                   <div className="whitespace-pre-wrap text-sm text-neutral-200">
                     {msg.message}
+                    {isAccessibilityError(msg.message) && (
+                      <div className="mt-2 text-xs text-red-300">
+                        💡 Tip: After enabling accessibility in System Settings,
+                        try your prompt again.
+                      </div>
+                    )}
+                    {isScreenshotError(msg.message) && (
+                      <div className="mt-2 text-xs text-orange-300">
+                        💡 Tip: This might be due to screen recording
+                        permissions. Try enabling screen recording for Opus in
+                        System Settings → Privacy & Security → Screen Recording.
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
