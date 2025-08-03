@@ -5,10 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "source .env && vite --host",
-    "build": "source .env && tsc && vite build && electron-builder",
+    "build": "source .env && tsc && vite build && npm run copy-swift && electron-builder",
+    "copy-swift": "cp -r swift dist/",
     "build-display": "cd swift/virtualdisplay && rm -rf DerivedData && xcodebuild -scheme virtualdisplay build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "debug": "source .env && tsc && vite build && electron dist-electron/main.js --debug",
+    "debug-built": "open /Applications/Opus.app --args --debug"
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",

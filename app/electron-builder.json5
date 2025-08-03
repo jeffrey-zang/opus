@@ -4,13 +4,38 @@
   appId: "us.tryop.app",
   asar: true,
   productName: "Opus",
+  icon: "public/logo.png",
   directories: {
     output: "release/${version}",
   },
-  files: ["dist", "dist-electron"],
+  files: [
+    "dist",
+    "dist-electron",
+    "dist/swift/**/*",
+    "public/**/*",
+    "!**/*.map",
+    "!**/node_modules/**/*",
+  ],
+  extraResources: [
+    {
+      from: "dist/swift",
+      to: "swift",
+      filter: ["**/*"],
+    },
+    {
+      from: "public",
+      to: "public",
+      filter: ["**/*"],
+    },
+  ],
   mac: {
     target: ["dmg"],
     artifactName: "${productName}.${ext}",
+    icon: "public/logo.png",
+    hardenedRuntime: false,
+    gatekeeperAssess: false,
+    entitlements: "swift/virtualdisplay/virtualdisplay.entitlements",
+    entitlementsInherit: "swift/virtualdisplay/virtualdisplay.entitlements",
   },
   win: {
     target: [
@@ -20,6 +45,7 @@
       },
     ],
     artifactName: "${productName}-Windows-${version}-Setup.${ext}",
+    icon: "public/logo.png",
   },
   nsis: {
     oneClick: false,
@@ -30,5 +56,6 @@
   linux: {
     target: ["AppImage"],
     artifactName: "${productName}-Linux-${version}.${ext}",
+    icon: "public/logo.png",
   },
 }
