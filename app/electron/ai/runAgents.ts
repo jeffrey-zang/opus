@@ -1,22 +1,19 @@
 import { AgentInputItem } from "@openai/agents";
 import OpenAI from "openai";
-import * as fs from "node:fs";
-import * as path from "node:path";
 import { Element } from "../types";
 import { logWithElapsed } from "../utils/utils";
 import getApplescriptCommands from "../utils/getApplescriptCommands";
 
 const openai = new OpenAI();
 
-export async function* runActionAgentStreaming(
+export async function runActionAgent(
   appName: string,
   userPrompt: string,
   clickableElements: Element[],
   history: AgentInputItem[],
   screenshotBase64?: string,
-  stepFolder?: string,
   onToolCall?: (toolName: string, args: any) => Promise<string>
-) {
+): Promise<string> {
   logWithElapsed("runActionAgent", `Running action agent for app: ${appName}`);
   let parsedClickableElements = "";
   for (let i = 0; i < clickableElements.length; i++) {
@@ -29,11 +26,22 @@ export async function* runActionAgentStreaming(
     }
     parsedClickableElements +=
       `${element.id} ${roleOrSubrole}${
-        element.AXTitle ? `${element.AXTitle.trim()} ` : ""
-      }${element.AXValue ? `${element.AXValue.trim()} ` : ""}${
-        element.AXHelp ? `${element.AXHelp.trim()} ` : ""
-      }${element.AXDescription ? `${element.AXDescription.trim()} ` : ""}` +
-      "\n";
+        element.AXTitle ? `, title:"${element.AXTitle.trim()}" ` : ""
+      }${element.AXValue ? `, value:"${element.AXValue.trim()}" ` : ""}${
+        element.AXHelp ? `, help:"${element.AXHelp.trim()}" ` : ""
+      }${
+        element.AXDescription
+          ? `, description:"${element.AXDescription.trim()}" `
+          : ""
+      }${
+        element.AXRoleDescription
+          ? `, roleDesc:"${element.AXRoleDescription.trim()}" `
+          : ""
+      }${
+        element.AXPlaceholderValue
+          ? `, placeholder:"${element.AXPlaceholderValue.trim()}" `
+          : ""
+      }` + "\n";
   }
 
   const contentText =
@@ -69,27 +77,40 @@ export async function* runActionAgentStreaming(
     },
   ];
 
-  if (stepFolder) {
-    fs.writeFileSync(path.join(stepFolder, "agent-prompt.txt"), contentText);
-    fs.writeFileSync(
-      path.join(stepFolder, "fullPrompt.json"),
-      JSON.stringify(agentInput)
-    );
-    logWithElapsed("runActionAgent", `Saved agent-prompt.txt`);
-  }
-
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     {
       role: "system",
-      content: `You are an agent that generates an instruction to be executed. Generate the next step to accomplish the following task from the current position, indicated by the screenshot. Use the previous steps taken to inform your next action. If a previous step failed, you will see the error message and the script that caused it. Analyze the error and the script, and generate a new step to recover and continue the task. However, if you see that a strategy is failing repeatedly, you must backtrack and try a completely different solution. Don't get stuck in a loop. Do not add any extra fluff. Only give the instruction and nothing else. You are not talking to a human. You will eventually run these tasks. Just give me the frickin instruction man. You are making this instruction for a MacBook. Do not add anything before or after the instruction. Do not be creative. Do not add unnecessary things. If there are no previous steps, then you are generating the first step to be executed. Make each step as short concise, and simple as possible.
+      content: `<preface>
+You are an agent that generates an instruction to be executed. Generate the next step to accomplish the following task from the current position, indicated by the screenshot. Use the previous steps taken to inform your next action. If a previous step failed, you will see the error message and the script that caused it. Analyze the error and the script, and generate a new step to recover and continue the task. However, if you see that a strategy is failing repeatedly, you must backtrack and try a completely different solution. Don't get stuck in a loop. Do not add any extra fluff. Only give the instruction and nothing else. You are not talking to a human. You will eventually run these tasks. Just give me the frickin instruction man. You are making this instruction for a MacBook. Do not add anything before or after the instruction. Do not be creative. Do not add unnecessary things. If there are no previous steps, then you are generating the first step to be executed. Make each step as short concise, and simple as possible.
+</preface>
 
+<specifications>
 Do not delete a user's work. For example, open a new tab in a browser, instead of overriding the user's current one. Open a new Google doc instead of using an existing one.
 
 You may notice that you are given a lot of context for lower priority tools. For example, a list of UI elements for the Click tool. You **may ignore** these completely, if a higher priority tool can perform an action equally well or better. The amount of context given for the lower priority tools are simply due to their nature. It does not mean you should prioritize them more. You will receive this context regardless of whether it is useful for the task. It is up to you to filter it, if needed. For example, if you want to open a new tab in a browser, the Applescript tool is preferred, over using the Key and Click.
 
-If the screenshot, along with previous commands run, indicate that the task has been completed successfully, simply reply with a very short message (a few words) stating that the task has been finished, appending the word STOP in all caps at the end. For example: "You are already registered STOP". Be sure that this ending message is aware of the starting one (ie. if the starting request is "Open Safari", have it be "Safari is opened! STOP").
+If the screenshot, along with previous commands run, indicate that the task has been completed successfully, simply reply with a very short message (a few words) stating that the task has been finished, appending the word STOP in all caps at the end. For example: "You are already registered STOP". Be sure that this ending message is aware of the starting one (ie. if the starting request is "Open Safari", have it be "Safari is opened! STOP"). Make sure to stop immediately once the task has been completed.
+</specifications>
 
-Below are the tools you have access to. They are roughly in the order you should prioritize them, however, use the right tool for the job. If multiple tools can accomplish the same task, use the tool that comes first in the list. It is more reliable. That being said, use the best matching tool first. Don't try to use Applescript to handle key events, for example. Use the Key tool instead. If you have tried to use the same tool many times, and it doesn't work, switch tools. If it takes fewer steps to use any tool, use that one. To use a tool, simply start the first line with \`=toolname\`, then a new line with whatever the tool expects.
+Below are the tools you have access to. They are roughly in the order you should prioritize them, however, use the right tool for the job. If multiple tools can accomplish the same task, use the tool that comes first in the list. It is more reliable. That being said, use the best matching tool first. Don't try to use Applescript to handle key events, for example. Use the Key tool instead. If you have tried to use the same tool many times, and it doesn't work, switch tools. If it takes fewer steps to use any tool, use that one. To use a tool, simply start the first line with \`=toolname\`, then a new line with whatever the tool expects. For example, to use the Applescript tool, your response should look like
+\`\`\`
+=Applescript
+tell application "Spotify"
+    play
+end tell
+\`\`\`
+or
+\`\`\`
+=Key
+^cmd+v
+\`\`\`
+or
+\`\`\`
+=Click
+22
+\`\`\`
+(Do not put the response in a codeblock)
+You can only use one tool per step. You are only able to use one tool per step.
 
 Always be sure to prefix your response equal sign and the tool that is being used. (ie. =Click, =Key, =Applescript)
 
@@ -98,25 +119,40 @@ There is an additional requirement to ensure that any action you take does not c
 # Tools
 
 ## Applescript
+<usecase>
 Run an Applescript (.scpt) script on the user's computer. Use this to tell supported apps to do things. For example, to tell Spotify to play. Do not use this as a replacement for other tools. For example, do not use this tool to perform key presses.
+</usecase>
+<instructions>
 Expects a valid Applescript script in plaintext, not in a codeblock.
 Returns the result of running the script, either success or error.
 Start your response with =Applescript to use this tool.
+</instructions>
 
 ## URI
+<usecase>
 Open a URI for an app that supports it. For example, an obsidian://... URI. Use this on apps that have a URI.
+</usecase>
+<instructions>
 Expects a valid URI.
 Returns the result of opening the URI, either success or error.
 Start your response with =URI to use this tool.
+</instructions>
 
 ## Bash
-Run a Bash (.sh) script on the user's computer. Very useful if the app has a powerful CLI (eg. VSCode). You may use this for any other bash script, however. Do not use this as a replacement for other tools. For example, do not use this tool to perform key presses.
+<usecase>
+Run a Bash (.sh) script on the user's computer. Very useful if the app has a powerful CLI (eg. VSCode). You may use this for any other bash script, however. Do not use this tool to perform key presses.
+</usecase>
+<instructions>
 Expects a valid bash script, in plaintext, not a codeblock.
 Returns the result of running the script, either success or error.
 Start your response with =Bash to use this tool.
+</instructions>
 
 ## Key
+<usecase>
 Type into an application using the keyboard. Use this for typing text, or typing keyboard shortcuts. You may use modifier keys and special keys. If the application has keyboard shortcuts to perform an action, prefer using this instead of clicking UI elements.
+</usecase>
+<instructions>
 Expects the string to be typed into the application
 You may use modifier keys and special keys. To use them, you must first separate it from the other text with a space (\` \`), you must escape them with a carat (\`^\`). To type multiple keys at once, separate them with a plus (\`+\`). For example, "^cmd+t", or "foo ^enter". Do not put a space between your characters in one word. Another example "foo bar ^enter". Here is a list of all available modifiers and special keys:
 
@@ -139,30 +175,43 @@ fn
 and all of the function number keys (f1-f12).
 
 Start your response with =Key to use this tool.
+</instructions>
 
 ## Click
+<usecase>
 Click a UI Element. You may be given a list of UI Elements. If one of these elements suits the use case, click on it. Only use this if the element is in the list given. Do not attempt to click an element which is not on the list.
+</usecase>
+<instructions>
 Expects a number, that is the element ID. This is at the start of each element entry. This must be a number, and not the description of the element. Do NOT give the description or title of the element. Only give the numerical ID.
 
-Start your response with =Click to use this tool.`
-    }
+Start your response with =Click to use this tool.
+</instructions>`,
+    },
   ];
 
-  // Convert agent input to OpenAI messages format
   for (const item of agentInput) {
     if ("role" in item) {
       if (item.role === "user") {
         if (Array.isArray(item.content)) {
-          const textContent = item.content.find((c: any) => c.type === "input_text")?.text || "";
-          const imageContent = item.content.find((c: any) => c.type === "input_image");
-          
+          const textItem = item.content.find(
+            (c: any) => c.type === "input_text"
+          );
+          const textContent =
+            textItem && textItem.type === "input_text" ? textItem.text : "";
+          const imageContent = item.content.find(
+            (c: any) => c.type === "input_image"
+          );
+
           if (imageContent) {
             messages.push({
               role: "user",
               content: [
                 { type: "text", text: textContent },
-                { type: "image_url", image_url: { url: (imageContent as any).image } }
-              ]
+                {
+                  type: "image_url",
+                  image_url: { url: (imageContent as any).image },
+                },
+              ],
             });
           } else {
             messages.push({ role: "user", content: textContent });
@@ -172,7 +221,9 @@ Start your response with =Click to use this tool.`
         }
       } else if (item.role === "assistant") {
         if (Array.isArray(item.content)) {
-          const textItem = item.content.find((c: any) => c.type === "output_text");
+          const textItem = item.content.find(
+            (c: any) => c.type === "output_text"
+          );
           const text = textItem ? (textItem as any).text : "";
           messages.push({ role: "assistant", content: text });
         } else {
@@ -184,73 +235,54 @@ Start your response with =Click to use this tool.`
     }
   }
 
-  const stream = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: messages,
-    stream: true,
-    temperature: 0.0
-  });
+  let response = "";
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1",
+      messages: messages,
+      temperature: 0.0,
+    });
 
-  let accumulatedText = "";
-  let isToolCall = false;
-  let toolName = "";
-  let toolArgs = "";
+    response = completion.choices[0]?.message?.content || "";
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
-  for await (const chunk of stream) {
-    const delta = chunk.choices[0]?.delta;
-    if (!delta?.content) continue;
-
-    const content = delta.content;
-    
-    // Check for tool call pattern before adding to accumulated text
-    const tempAccumulated = accumulatedText + content;
-    if (tempAccumulated.includes("=") && !isToolCall) {
-      const toolMatch = tempAccumulated.match(/=([A-Za-z]+)/);
-      if (toolMatch) {
-        // Send any text before the tool call
-        const beforeTool = tempAccumulated.substring(0, toolMatch.index);
-        const remainingText = beforeTool.substring(accumulatedText.length);
-        if (remainingText) {
-          yield { type: "text", content: remainingText };
-        }
-        
-        isToolCall = true;
-        toolName = toolMatch[1];
-        yield { type: "tool_start", toolName };
-        
-        // Initialize tool args with any content after the tool name
-        toolArgs = tempAccumulated.substring(toolMatch.index! + toolMatch[0].length);
-        if (toolArgs) {
-          yield { type: "tool_args", content: toolArgs };
-        }
-        accumulatedText = beforeTool;
-        continue;
-      }
-    }
-
-    accumulatedText += content;
-    
-    if (isToolCall) {
-      if (!toolArgs.includes(content)) {
-        toolArgs += content;
-        yield { type: "tool_args", content };
-      }
+    if (
+      errorMessage.includes("400") &&
+      errorMessage.includes("unsupported image")
+    ) {
+      throw new Error(
+        "Screenshot error: The image format is not supported. This might be due to screen recording permissions. Please enable screen recording for Opus in System Settings → Privacy & Security → Screen Recording."
+      );
+    } else if (errorMessage.includes("400")) {
+      throw new Error(`OpenAI API error: ${errorMessage}`);
     } else {
-      // Stream each character individually for smooth display
-      yield { type: "text", content };
+      throw new Error(`Error communicating with OpenAI: ${errorMessage}`);
     }
   }
 
-  // Execute tool if we have one
-  if (isToolCall && onToolCall) {
-    yield { type: "tool_execute", toolName };
-    const result = await onToolCall(toolName, toolArgs.trim());
-    yield { type: "tool_result", content: result };
-    
-    // Return the full accumulated text plus tool info for history
-    const fullResponse = accumulatedText.trim() + `\n=${toolName}\n${toolArgs.trim()}`;
-    return fullResponse;
+  if (response.includes("=") && response.includes("\n") && onToolCall) {
+    const lines = response.split("\n");
+    let toolName = "";
+    let toolArgs = "";
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.startsWith("=")) {
+        toolName = line.substring(1);
+        toolArgs = lines
+          .slice(i + 1)
+          .join("\n")
+          .trim();
+        break;
+      }
+    }
+
+    if (toolName && toolArgs) {
+      const result = await onToolCall(toolName, toolArgs);
+      return response + `\n\nTool Result:\n${result}`;
+    }
   }
 
-  return accumulatedText.trim();
+  return response;
 }

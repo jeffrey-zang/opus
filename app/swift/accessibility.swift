@@ -3,6 +3,9 @@ import ApplicationServices
 import Cocoa
 import CoreFoundation
 
+// Dev-friendly script to fetch all clickable elements in an app (always uses the currently selected app)
+// Usage: swift accessibility.swift
+
 struct DebugDebouncer {
   static var hasPrintedAttributes = false
 }
@@ -16,6 +19,27 @@ func getStringAttribute(from element: AXUIElement, attribute: String) -> String?
     return value as? String
   }
   return nil
+}
+
+// Define all accessibility attributes for consistency
+let allAccessibilityAttributes = [
+  "AXRole",
+  "AXTitle", 
+  "AXHelp",
+  "AXValue",
+  "AXDescription",
+  "AXSubrole",
+  "AXRoleDescription",
+  "AXPlaceholderValue"
+]
+
+// Helper function to get all accessibility attributes for an element
+func getAllAccessibilityAttributes(from element: AXUIElement) -> [String: String] {
+  var attributes: [String: String] = [:]
+  for attr in allAccessibilityAttributes {
+    attributes[attr] = getStringAttribute(from: element, attribute: attr) ?? ""
+  }
+  return attributes
 }
 
 // Helper function to safely get array attribute
@@ -111,7 +135,9 @@ func scanElement(_ element: AXUIElement, depth: Int = 0) -> [ClickableElementInt
       title =
         getStringAttribute(from: element, attribute: "AXDescription")
         ?? getStringAttribute(from: element, attribute: "AXValue")
-        ?? getStringAttribute(from: element, attribute: "AXHelp") ?? ""
+        ?? getStringAttribute(from: element, attribute: "AXHelp")
+        ?? getStringAttribute(from: element, attribute: "AXRoleDescription")
+        ?? getStringAttribute(from: element, attribute: "AXPlaceholderValue") ?? ""
     }
 
     // Only include elements with useful info or good positions

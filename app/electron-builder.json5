@@ -1,43 +1,61 @@
 // @see - https://www.electron.build/configuration/configuration
 {
-  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "YourAppID",
-  "asar": true,
-  "productName": "YourAppName",
-  "directories": {
-    "output": "release/${version}"
+  $schema: "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  appId: "us.tryop.app",
+  asar: true,
+  productName: "Opus",
+  icon: "public/logo.png",
+  directories: {
+    output: "release/${version}",
   },
-  "files": [
+  files: [
     "dist",
-    "dist-electron"
+    "dist-electron",
+    "dist/swift/**/*",
+    "public/**/*",
+    "!**/*.map",
+    "!**/node_modules/**/*",
   ],
-  "mac": {
-    "target": [
-      "dmg"
-    ],
-    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+  extraResources: [
+    {
+      from: "dist/swift",
+      to: "swift",
+      filter: ["**/*"],
+    },
+    {
+      from: "public",
+      to: "public",
+      filter: ["**/*"],
+    },
+  ],
+  mac: {
+    target: ["dmg"],
+    artifactName: "${productName}.${ext}",
+    icon: "public/logo.png",
+    hardenedRuntime: false,
+    gatekeeperAssess: false,
+    entitlements: "swift/virtualdisplay/virtualdisplay.entitlements",
+    entitlementsInherit: "swift/virtualdisplay/virtualdisplay.entitlements",
   },
-  "win": {
-    "target": [
+  win: {
+    target: [
       {
-        "target": "nsis",
-        "arch": [
-          "x64"
-        ]
-      }
+        target: "nsis",
+        arch: ["x64"],
+      },
     ],
-    "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
+    artifactName: "${productName}-Windows-${version}-Setup.${ext}",
+    icon: "public/logo.png",
   },
-  "nsis": {
-    "oneClick": false,
-    "perMachine": false,
-    "allowToChangeInstallationDirectory": true,
-    "deleteAppDataOnUninstall": false
+  nsis: {
+    oneClick: false,
+    perMachine: false,
+    allowToChangeInstallationDirectory: true,
+    deleteAppDataOnUninstall: false,
   },
-  "linux": {
-    "target": [
-      "AppImage"
-    ],
-    "artifactName": "${productName}-Linux-${version}.${ext}"
-  }
+  linux: {
+    target: ["AppImage"],
+    artifactName: "${productName}-Linux-${version}.${ext}",
+    icon: "public/logo.png",
+  },
 }

@@ -1,6 +1,7 @@
-import { ExecException } from "node:child_process";
+import { execPromise, logWithElapsed } from "../utils/utils";
+import { getSwiftPath } from "../main";
 import { Element } from "../types";
-import { logWithElapsed, execPromise } from "../utils/utils";
+import * as path from "path";
 
 export interface ClickReturnType {
   type: "click";
@@ -22,19 +23,40 @@ export default async function click(
     }
     return false;
   });
+
   if (element) {
     logWithElapsed(
       "performAction",
       `Clicked element info: ${JSON.stringify(element)}`
     );
+  } else {
+    logWithElapsed(
+      "performAction",
+      `Warning: Could not find element with id ${id} in clickable elements list`
+    );
   }
+
   try {
-    await execPromise(`swift swift/click.swift ${bundleId} ${id}`);
+    await execPromise(
+      `swift ${getSwiftPath("click.swift")} ${bundleId} ${id}`,
+      {
+        cwd: path.dirname(getSwiftPath("click.swift")),
+      }
+    );
     logWithElapsed("performAction", `Executed click for id: ${id}`);
     return { type: "click", id, element: element || null };
   } catch (error) {
-    const { stderr } = error as ExecException;
+    const { stderr } = error as any;
     logWithElapsed("performAction", `Error clicking element ${id}: ${stderr}`);
-    return { type: "click", id, element: element || null, error: stderr };
+    const errorMessage = element
+      ? `Failed to click element with ID ${id} (${
+          element.AXRole || "unknown role"
+        }${element.AXTitle ? `: ${element.AXTitle}` : ""}${
+          element.AXRoleDescription ? ` (${element.AXRoleDescription})` : ""
+        }${
+          element.AXPlaceholderValue ? ` [${element.AXPlaceholderValue}]` : ""
+        }): ${stderr}`
+      : `Failed to click element with ID ${id} (element not found): ${stderr}`;
+    return { type: "click", id, element: element || null, error: errorMessage };
   }
 }
