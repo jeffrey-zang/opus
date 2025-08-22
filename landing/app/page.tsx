@@ -138,7 +138,7 @@ export default function Home() {
       <div className="max-w-md w-full">
         <h1 className="text-white text-2xl sm:text-4xl font-bold mb-2">Opus</h1>
         <p className="text-white text-sm sm:text-base mb-6">
-          On-device computer use, fully in the background.
+          Computers that act before you ask
         </p>
         <form onSubmit={handleWaitlistSubmit} className="space-y-3">
           <input
