@@ -24,7 +24,14 @@ contextBridge.exposeInMainWorld("ipcRenderer", {
   sendMessage: (msg: string) => ipcRenderer.send("message", msg),
   onReply: (callback: (data: string) => void) =>
     ipcRenderer.on("reply", (_, data) => callback(data)),
-  removeAllListeners: (channel: string) => ipcRenderer.removeAllListeners(channel),
+  removeAllListeners: (channel: string) =>
+    ipcRenderer.removeAllListeners(channel),
+
+  // New conversational interface methods
+  resetConversation: () => ipcRenderer.send("reset-conversation"),
+  changeApp: (appName: string) => ipcRenderer.send("change-app", appName),
+  onAppChanged: (callback: (data: { appName: string }) => void) =>
+    ipcRenderer.on("app-changed", (_, data) => callback(data)),
 
   // You can expose other APTs you need here.
   // ...
