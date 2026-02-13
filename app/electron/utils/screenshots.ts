@@ -1,6 +1,7 @@
 import { desktopCapturer } from "electron";
 import { execPromise, logWithElapsed } from "./utils";
 import { Window } from "../types";
+import { getSwiftPath } from "../main";
 
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -9,12 +10,17 @@ export async function takeAndSaveScreenshots(
   appName: string,
   stepFolder: string
 ) {
+  if (!fs.existsSync(stepFolder)) {
+    fs.mkdirSync(stepFolder, { recursive: true });
+  }
+
   logWithElapsed(
     "takeAndSaveScreenshots",
     `Taking screenshot of app window for app: ${appName}`
   );
   const { stdout: swiftWindowsStdout } = await execPromise(
-    `swift swift/windows.swift`
+    `swift ${getSwiftPath("windows.swift")}`,
+    { cwd: path.dirname(getSwiftPath("windows.swift")) }
   );
   logWithElapsed("takeAndSaveScreenshots", `Got swift windows`);
   const swiftWindows = JSON.parse(swiftWindowsStdout).filter(
@@ -40,9 +46,13 @@ export async function takeAndSaveScreenshots(
     const image = source.thumbnail;
     if (!image.isEmpty()) {
       console.log(window.name, window.name.replace(" ", "-"));
+      const safeName = window.name
+        .replace(/[^a-zA-Z0-9\s\-_\.]/g, "_")
+        .replace(/\s+/g, "_")
+        .substring(0, 100);
       const screenshotPath = path.join(
         stepFolder,
-        `screenshot-${encodeURI(window.name)}.png`
+        `screenshot-${safeName}.png`
       );
       fs.writeFileSync(screenshotPath, image.toPNG());
       logWithElapsed(

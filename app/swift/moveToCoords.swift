@@ -1,6 +1,7 @@
 #!/usr/bin/swift
 
-// script that takes a pid, the name of a window, an x, and a y coordinate to move that window to
+// Script that takes a pid, the name of a window, an x, and a y coordinate to move that window to
+// Usage: swift moveToCoords.swift <pid> <windowName> <x> <y>
 import AppKit
 
 enum MyError: Error {

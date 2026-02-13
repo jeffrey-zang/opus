@@ -1,15 +1,24 @@
-import { execPromise, logWithElapsed } from "../utils/utils";
+import { execPromise } from "../utils/utils";
+import { getSwiftPath } from "../main";
+import * as path from "path";
 
 export interface KeyReturnType {
   type: "key";
   keyString: string;
 }
-export default async function key(
+
+export async function key(bundleId: string, keyString: string): Promise<void> {
+  await execPromise(
+    `swift ${getSwiftPath("key.swift")} ${bundleId} "${keyString}"`,
+    { cwd: path.dirname(getSwiftPath("key.swift")) }
+  );
+}
+
+export default async function keyAction(
   body: string,
   bundleId: string
 ): Promise<KeyReturnType> {
   const keyString = body;
-  await execPromise(`swift swift/key.swift ${bundleId} "${keyString}"`);
-  logWithElapsed("performAction", `Executed key: ${keyString}`);
+  await key(bundleId, keyString);
   return { type: "key", keyString };
 }
